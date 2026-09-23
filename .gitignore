@@ -1,0 +1,12 @@
+.venv/
+.env
+__pycache__/
+.cache/
+data/raw/
+data/index/
+tmp/
+output/runs/
+output/replay/
+output/*/evaluation.json
+output/*/checkpoints/
+.DS_Store

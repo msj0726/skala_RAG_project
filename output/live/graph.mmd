@@ -1,0 +1,21 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	market_agent(market_agent)
+	domain_agent(domain_agent)
+	synthesis_agent(synthesis_agent)
+	report_writer(report_writer)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> domain_agent;
+	__start__ --> market_agent;
+	domain_agent --> synthesis_agent;
+	market_agent --> synthesis_agent;
+	synthesis_agent --> report_writer;
+	report_writer --> __end__;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc

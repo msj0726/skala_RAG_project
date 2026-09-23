@@ -1,0 +1,79 @@
+{
+  "reviewed_at": "2026-09-23",
+  "provenance": "공개 1차 자료를 확인해 작성한 검토 기록. OpenAI API 생성 결과가 아님. 재현 모드에서 원문 벡터 검색과 코드 채점을 다시 실행한다.",
+  "market": [
+    {
+      "tech": "MLA",
+      "growth": [
+        {"name":"수요 동인","points":1,"reason":"장문맥 KV 부담을 줄이는 메커니즘은 확인되지만 향후 3년의 기술별 수요 시계열·시장 규모는 확보하지 못했다.","refs":["S1"]},
+        {"name":"채택 확대","points":2,"reason":"V2 이후 V3가 MLA를 유지하고, V3 기반 R1을 AWS가 일반 제공하며 실제 고객 배포를 보고했다. 계열 확산 근거이며 V2 자체의 고객 수는 아니다.","refs":["S5","S8","S9"]},
+        {"name":"공급·생태계 투자","points":1,"reason":"vLLM MLA 백엔드와 FlashMLA 구현은 공급 기반의 존재를 뒷받침한다. 투자 규모의 연속 증가를 증명하지는 않는다.","refs":["S3","S4"]}
+      ],
+      "cases": [
+        {"actor":"DeepSeek-AI","level":1,"scope":"selected","reason":"V2 논문과 모델 공개를 확인했다. 본 자료 풀만으로 V2의 현재 상용 운영을 확정하지 않는다.","refs":["S1"]},
+        {"actor":"AWS / Amazon Bedrock 고객","level":4,"scope":"family","reason":"AWS는 R1의 정식 서비스와 수천 고객의 배포를 보고했다. R1→V3→MLA 연결은 모델 원문으로 확인했다. 벤더 자기보고이며 선정 V2의 운영 증거는 아니다.","refs":["S5","S8","S9"]}
+      ],
+      "ecosystem": [
+        {"name":"프레임워크","present":true,"reason":"vLLM 문서가 MLA 전용 prefill/decode 백엔드를 열거한다.","refs":["S3"]},
+        {"name":"벤더 제품","present":true,"reason":"AWS의 R1 서비스 제공과 원 모델 계보로 MLA 계열 제품을 확인한다.","refs":["S5","S8","S9"]},
+        {"name":"표준화","present":false,"reason":"조사 자료에서 MLA 자체의 산업 표준은 확인하지 못했다.","refs":[]},
+        {"name":"제3자 연구·도구","present":false,"reason":"중복 집계를 피하고 vLLM은 프레임워크로만 계수했다. FlashMLA는 원 개발자의 도구로, 제3자 항목에 포함하지 않았다.","refs":["S3","S4"]}
+      ],
+      "author_implementation":true,
+      "author_refs":["S1","S4"],
+      "caveat":"M1은 2026-09-23부터 3년을 바라보는 정성적 전망이다. 4점은 성장률 예측이나 시장 점유율을 뜻하지 않는다. M2의 최고 단계는 채택의 보편성을 뜻하지 않는다."
+    },
+    {
+      "tech":"PNM",
+      "growth":[
+        {"name":"수요 동인","points":1,"reason":"장문맥과 외부 KV 메모리의 전송 병목은 논문이 다룬다. 실제 고객 수요가 연속 증가했다는 자료는 부족하다.","refs":["S2"]},
+        {"name":"채택 확대","points":1,"reason":"CXL 메모리 계열 제품 페이지는 확인되지만 선정 PNM-KV/PnG-KV의 상용 고객 사례는 확인되지 않았다.","refs":["S6","S2"]},
+        {"name":"공급·생태계 투자","points":1,"reason":"CXL 규격과 메모리 제품이 기반을 제공한다. 선정 PNM 구조에 대한 지속 투자 규모와 대량 출하는 별도 검증이 필요하다.","refs":["S7","S6"]}
+      ],
+      "cases":[
+        {"actor":"Kim et al. 연구팀","level":1,"scope":"selected","reason":"논문은 합성 타이밍·전력 모델로 보정한 사이클 수준 시뮬레이터를 평가에 사용했다. 이 자료만으로 현장 PoC 또는 상용 운영으로 올리지 않는다.","refs":["S2"]},
+        {"actor":"Samsung Electronics","level":3,"scope":"family","reason":"CMM-D 공식 제품 자료를 확인했다. CXL 메모리 제품이며 해당 논문의 PNM 가속 기능과 동일한 제품이라는 뜻은 아니다.","refs":["S6"]}
+      ],
+      "ecosystem":[
+        {"name":"프레임워크","present":false,"reason":"논문 자체 런타임은 외부 프레임워크 지원과 구별했다. 선정 구조의 범용 프레임워크 통합은 미확인이다.","refs":["S2"]},
+        {"name":"벤더 제품","present":true,"reason":"CMM-D가 CXL 메모리 계열의 제품 근거다. PNM-KV 제품의 증거는 아니다.","refs":["S6"]},
+        {"name":"표준화","present":true,"reason":"CXL Consortium의 규격 아카이브가 존재한다. PNM 토큰 선택 알고리즘 자체의 표준은 아니다.","refs":["S7"]},
+        {"name":"제3자 연구·도구","present":false,"reason":"선정 논문을 자기 자신의 제3자 연구로 집계하지 않았다. 별도 원문을 확보하지 못한 항목은 N으로 남겼다.","refs":[]}
+      ],
+      "author_implementation":true,
+      "author_refs":["S2"],
+      "caveat":"계열 범위를 넓히면 제품·표준의 근거가 늘지만 선정 논문의 상용성은 올라가지 않는다. N은 조사 범위 내 미확인이며 부존재의 증명이 아니다."
+    }
+  ],
+  "domain":[
+    {
+      "tech":"MLA",
+      "capacity":{"reduction_pct":93.3,"expansion":null,"basis":"DeepSeek-V2 대 DeepSeek 67B의 KV cache 비교. 1/(1-0.933)=14.925배의 동일 KV 예산 환산치이며 실측 세션 길이 배수가 아니다.","refs":["S1"]},
+      "responsiveness":{"ttft_change_pct":null,"tpot_change_pct":null,"cost_reduction_pct":null,"sla_met":null,"basis":"논문의 최대 처리량 향상을 TTFT·TPOT로 바꾸지 않는다. KV 감소율은 총 운영비 감소율이 아니다. 동일 코딩 에이전트 조건의 지연·비용·SLA 자료가 없다.","refs":["S1"]},
+      "application":"장기 세션당 KV 예산 감소에 연결되는 구조다. 실제 보존 가능한 코드·대화 길이는 모델 문맥 한도, 가중치 메모리, 동시 사용자, 도구 출력량에 함께 제약된다.",
+      "limitations":"MLA 지원 모델과 커널이 필요하다. 일반 모델에 설정 하나로 적용하는 압축 기법이 아니다. 보고된 비교는 모델 구조가 다른 세대 간 비교이며 MLA만의 통제 실험으로 일반화하지 않는다."
+    },
+    {
+      "tech":"PNM",
+      "capacity":{"reduction_pct":null,"expansion":null,"basis":"최대 1M 문맥 실험은 확인되지만 128K→1M을 동일 하드웨어의 최대 문맥 증가 배수로 간주할 수 없다. GPU·PNM 수가 함께 바뀌며 기준 시스템도 CXL 확장 메모리를 사용한다.","refs":["S2"]},
+      "responsiveness":{"ttft_change_pct":null,"tpot_change_pct":null,"cost_reduction_pct":null,"sla_met":null,"basis":"평가는 주로 decode 단계와 처리량/달러를 다룬다. 대화형 TTFT를 포함한 동일 SLA 비교가 없으므로 최대 비용 효율 수치만으로 D2를 확정하지 않는다.","refs":["S2"]},
+      "application":"여러 세션의 KV를 외부 메모리에 수용하고 선택 연산을 메모리 근처에서 처리하는 방향이다. 다수 에이전트의 동시 운용 가능성은 분석적 해석이며 코딩 에이전트 실측은 아니다.",
+      "limitations":"추가 CXL-PNM 하드웨어·드라이버·서빙 경로가 필요하다. 논문은 시뮬레이션 기반 성능 평가이며 요약 작업의 결과를 실제 도구 호출 세션에 직접 전이할 수 없다."
+    }
+  ],
+  "synthesis":{
+    "summary":"시장에서는 MLA 계열의 서비스 운영과 CXL 계열의 제품 기반이 서로 다른 형태로 확인된다. 도메인에서는 MLA의 KV 감소를 정량화할 수 있지만, PNM의 최대 문맥 수치는 동일 조건 증가 배수로 환산할 수 없다. 두 기술 모두 코딩·업무 에이전트의 TTFT·TPOT·비용을 함께 충족하는 근거가 부족해 응답성과 비용 효율은 판정을 유보한다. 이는 기술 우열이 아니라 공개 근거의 범위 차이를 보여준다.",
+    "implications":[
+      "시장 채택 단계가 높더라도 특정 코딩 에이전트의 응답 SLA 충족이 보장되지는 않는다. MLA 계열 서비스 존재와 D2 판정 유보는 모순되지 않는다.",
+      "외부 메모리 수용량의 확대와 토큰당 KV 압축은 서로 다른 변경 지점을 가진다. 동일 환경 실측 없이 양자의 수치를 직접 순위화하거나 합산하지 않는다.",
+      "계열의 제품·규격 지원은 연구 기술의 도입 기반이 될 수 있지만, PNM 논문 자체의 상용 운영 증거와 구분해야 한다."
+    ],
+    "limitations":[
+      "공개 자료와 벤더 자기보고를 사용했으며 독립적 실측은 수행하지 않았다. 상용 사용량·투자액·향후 3년 성장률은 확인하지 못했다.",
+      "시장 조사는 MLA 및 PIM/PNM·CXL 기술 계열로 넓혔다. 도메인 수치는 선정 논문 단위를 유지했다. PIM은 포괄 명칭이며 선정 논문의 구체 방식은 PNM이다.",
+      "M1 세부 3항목과 D2 판정 유보 정책은 미정의 부분을 보완한 운영 규칙이다. M3에서는 동일 근거를 여러 범주에 중복 집계하지 않았다.",
+      "검색 원문에 근거 ID·페이지·범위를 연결하고, 긍정 주장과 제약을 함께 기록했다. 미확인 자료를 실패나 부존재로 단정하지 않으며 합산 승자를 만들지 않았다."
+    ],
+    "refs":["S1","S2","S3","S4","S5","S6","S7","S8","S9"]
+  }
+}
