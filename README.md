@@ -4,7 +4,7 @@ Human이 선정한 **DeepSeek-V2 MLA**와 **CXL-PNM (PNM-KV/PnG-KV)**를 시장�
 
 ## 실행
 
-Python 3.12 권장. 최초 실행은 논문·공식 문서와 무료 임베딩 모델을 다운로드하므로 인터넷이 필요합니다.
+Python 3.12 권장. 선정 논문 두 편은 `data/papers/`의 첨부 PDF를 SHA-256으로 확인해 사용합니다. 최초 실행에서 나머지 공식 문서와 무료 임베딩 모델을 다운로드하므로 인터넷이 필요합니다.
 
 ```bash
 python3 -m venv .venv
@@ -34,6 +34,7 @@ python -m unittest -v
 - `output/replay/report.pdf`: 검토 기록 기반 재현 보고서
 - `report.md`: 같은 내용의 편집 가능한 본문
 - `evaluation.json`: 점수 입력·채점 결과·출처·원문 청크·검색 결과·실행 모드
+- `web_evidence.json`: 검색 자료 중 발행처·실제 본문·주제 적합성·해시를 확인한 목록
 - `graph.mmd`: 실제 컴파일한 LangGraph
 
 제출 시 실제 실행 모드를 확인하고 PDF 이름을 과제 양식으로 변경하세요. GitHub public 게시·thread 제출은 자동으로 하지 않습니다. 원문은 `data/raw/`, 모델은 `.cache/`, 벡터는 `data/index/`에 보관하며 Git에서 제외합니다. 원문 청크가 포함된 `evaluation.json`도 로컬 검토용으로 Git에서 제외합니다. 검토 요약과 출처 목록은 `data/`에 포함됩니다. 설치 환경의 정확한 버전은 `requirements.lock`, 허용 버전 범위는 `requirements.txt`에 기록했습니다.
@@ -57,13 +58,13 @@ flowchart TD
 | 종합 평가 | 검토된 원장을 기준으로 두 관점의 차이와 한계를 설명. 새 수치·출처·합산 순위를 추가하지 않음 |
 | 보고서 작성 | 검증된 State를 정해진 목차로 렌더링. 추가 LLM 없이 코드로 PDF 생성 |
 
-시장과 도메인은 LangGraph fan-out으로 병렬 실행하고 `market`, `domain`, 각 trace를 분리 저장합니다. 양쪽 완료 후 join하여 종합합니다. 검색 재시도는 각 기술·관점당 최대 1회입니다. OpenAI WebSearch는 추가 API 도구 비용이 발생할 수 있습니다. 웹 검색 결과는 발견용이며 단독 채점 근거로 쓰지 않습니다. 고정 문서 풀 외의 신규 자료는 `sources.json`에 검토·추가한 후 재실행해야 합니다.
+시장과 도메인은 LangGraph fan-out으로 병렬 실행하고 `market`, `domain`, 각 trace를 분리 저장합니다. 양쪽 완료 후 join하여 종합합니다. 검색 재시도는 각 기술·관점당 최대 1회입니다. OpenAI WebSearch는 추가 API 도구 비용이 발생할 수 있습니다. 검색 URL만으로 근거를 만들지 않습니다. HTTPS·허용 발행처·실제 원문 수집·주제 키워드를 통과한 페이지는 해시와 발췌문을 `web_evidence.json` 및 trace에 기록하고, live 평가 제안의 M1/M2 원문 자료로 제공합니다. 이 검증은 출처 접근성과 주제 적합성의 확인이지 개별 주장·수치의 독립적인 사실 검증은 아닙니다. 최종 보고서 점수는 기존 수작업 검토 원장으로 고정되며, 신규 자료로 점수를 바꾸려면 `data/reviewed_evidence.json`을 검토·수정해야 합니다.
 
 ## 임베딩과 문서 풀
 
 오픈소스 `intfloat/multilingual-e5-small`을 로컬 CPU에서 사용합니다. 한국어 질의와 영어 원문을 함께 다룰 수 있고, 큰 모델보다 다운로드·CPU 부담을 낮추기 위해 선정했습니다. 후보는 영어 중심 `all-MiniLM-L6-v2`, 더 큰 다국어 `multilingual-e5-base`입니다. 이 선택은 비용·언어 지원 기준이며 검색 품질 우월성을 실험으로 증명한 것은 아닙니다.
 
-E5 권장 `query:` / `passage:` 접두사, 정규화 임베딩, NumPy cosine 검색을 사용합니다. 토큰 기준 300개 청크·60개 겹침. 자료 규모가 작아 별도 벡터 DB가 필요하지 않습니다. PDF 실제 페이지 수와 웹 3,000자당 1페이지의 환산량 합계를 200페이지로 제한합니다. PDF 페이지와 웹 환산페이지는 trace에서 구분합니다. 원문 URL·버전·수집 시간·SHA256을 기록하며, 이미 받은 자료는 재사용합니다. 웹 문서 변경을 반영하려면 해당 raw 캐시를 삭제하고 다시 실행합니다.
+E5 권장 `query:` / `passage:` 접두사, 정규화 임베딩, NumPy cosine 검색을 사용합니다. 토큰 기준 300개 청크·60개 겹침. 자료 규모가 작아 별도 벡터 DB가 필요하지 않습니다. PDF 실제 페이지 수와 웹 3,000자당 1페이지의 환산량 합계를 200페이지로 제한합니다. PDF 페이지와 웹 환산페이지는 trace에서 구분합니다. 원문 URL·버전·수집 시간·SHA256을 기록하며, 이미 받은 자료는 재사용합니다. 선정 논문은 로컬 PDF의 해시를 확인하고, 나머지는 URL에서 가져옵니다. 웹 문서 변경을 반영하려면 해당 raw 캐시를 삭제하고 다시 실행합니다.
 
 ## 평가 규칙과 보완한 가정
 
@@ -81,7 +82,7 @@ M1 세부 항목, D1 구간 경계, D2의 판정 유보는 사용자의 정의�
 
 첫 챕터 `SUMMARY`(반 페이지 이내 핵심 요약), 마지막 `REFERENCE`. 시장·도메인만 평가하며 특허·논문·웹 자료의 실사용 출처만 기록합니다. 미확인 발행일·학술지 정보를 만들어 넣지 않습니다. 선정 논문과 기술 계열의 근거는 분리합니다.
 
-`python -m unittest -v`의 8개 검사는 점수 경계, 잘못된 입력, 출처 위조·범위 혼합, M3 원문 청크 누락, OpenAI 응답 형식·실패 처리, 재검색 1회 제한, 병렬 평가의 합류, 근거가 없는 상용화 주장 차단을 점검합니다. live API 실행은 유효한 키와 모델 접근 권한이 있어야 검증할 수 있습니다. LLM의 의미 해석과 사실의 정확성은 JSON 스키마만으로 보장되지 않으므로 최종 제출 전 근거를 검토해야 합니다.
+`python -m unittest -v`의 12개 검사는 점수 경계, 첨부 논문 해시, 웹 출처 검증, 출처 위조·범위 혼합, M3 원문 청크 누락, OpenAI 응답 형식·실패 처리, 재검색 1회 제한, 병렬 평가 합류, 근거 없는 주장 차단을 점검합니다. live API 실행은 유효한 키와 모델 접근 권한이 있어야 검증할 수 있습니다. LLM의 의미 해석과 사실의 정확성은 JSON 스키마만으로 보장되지 않으므로 최종 제출 전 근거를 검토해야 합니다.
 
 공식 구현 문서: [LangGraph](https://docs.langchain.com/oss/python/langgraph/graph-api), [OpenAI Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs), [E5 모델 카드](https://huggingface.co/intfloat/multilingual-e5-small).
 

@@ -6,7 +6,7 @@ from typing import Literal
 import requests
 from pydantic import BaseModel, ConfigDict, Field
 
-from retrieval import web_search
+from retrieval import web_search, verify_web_results
 from scoring import growth, adoption, ecosystem, capacity, responsiveness
 
 
@@ -104,7 +104,7 @@ R1 서비스로 MLA 계열 채택을 설명할 때 R1→V3→MLA 연결 원문�
 M1: 수요 동인, 채택 확대, 공급·생태계 투자 각 0..2. 0=긍정 근거 미확인,
 1=단일 사례/간접 동인, 2=독립된 복수 사례 또는 시간상 확장 근거. 3년 전망의 정성 추정임을 명시.
 M2: 0=미확인,1=연구,2=현장 PoC,3=제품화,4=상용 운영; 주체 필수. 시뮬레이션만으로 PoC 부여 금지.
-M3: 프레임워크/벤더 제품/표준화/제3자 연구·도구 네 항목. Y는 원문 청크로 교차 확인.
+M3: 프레임워크/벤더 제품/표준화/제3자 연구·도구 네 항목. Y는 original_chunks의 source_id로만 인용한다. W 검색 출처는 M3에 사용할 수 없다.
 같은 구현을 범주 간 중복 계수하지 않는다. N은 미확인이지 부존재가 아니다.
 D1: 같은 비교 조건에서 KV 감소율 또는 최대 문맥 증가 배수 하나만 입력.
 93.3% 감소의 역수는 예산 환산이며 실측 세션 길이가 아니다. 서로 다른 하드웨어의 128K와 1M을 나누지 않는다.
@@ -125,6 +125,8 @@ PROBES = {
     "S7": ["CXL 3.0 2.0 specification archive"],
     "S8": ["DeepSeek R1 based on DeepSeek V3 Base model"],
     "S9": ["DeepSeek V3 adopts Multi-head Latent Attention MLA architecture"],
+    "S10": ["DeepseekV2MLAAttention inference only model vLLM"],
+    "S11": ["CXL memory pooling KV cache capacity LLM inference"],
 }
 
 
@@ -221,6 +223,7 @@ def evaluate(tech, perspective, retriever, mode, snapshot):
     plan = ask(Plan, task + " 자료 검색 계획을 한 개 작성.", {"sources": sources}) if mode == "live" else {"query": default_query, "missing_evidence": "저장된 판정의 원문 근거 재검색"}
     trace = {"tech": tech, "perspective": perspective, "mode": mode, "plan": plan, "rounds": []}
     result = None
+    verified_records = {}
     for attempt in range(2 if mode == "live" else 1):
         query = plan["query"]
         original_ids = [s["id"] for s in sources if perspective == "market" or s["scope"] == "selected"]
@@ -229,15 +232,32 @@ def evaluate(tech, perspective, retriever, mode, snapshot):
                     for q in [query] + PROBES.get(sid, [])]
         chunks = list({c["id"]: c for search in searches
                        for c in retriever.search(search["query"], tech, [search["source_id"]], k=2)}.values())
-        found = web_search(query) if mode == "live" else []
-        trace["rounds"].append({"query": query, "vector_queries": searches, "chunks": chunks, "web_results": found,
-                                "web_status": "live" if mode == "live" else "not called; reviewed source snapshot"})
+        # Free-form plans sometimes drift to unrelated namesakes; use a focused web probe.
+        web_query = ({("MLA", "market"): "DeepSeek-V2 MLA KV cache vLLM FlashMLA AWS adoption",
+                      ("PNM", "market"): "CXL PNM-KV PnG-KV Samsung CXL memory product standard",
+                      ("MLA", "domain"): "DeepSeek-V2 MLA KV cache latency TTFT TPOT cost",
+                      ("PNM", "domain"): "CXL PNM-KV PnG-KV 1M-token inference latency cost"}[(tech, perspective)]
+                     + (" " + query[:80] if attempt else ""))
+        found = web_search(web_query) if mode == "live" else []
+        verified, rejected = verify_web_results(found, tech, sources) if mode == "live" else ([], [])
+        verified_records.update({r["source"]["id"]: r for r in verified})
+        sources = [r["source"] for r in retriever.records if r["source"]["tech"] == tech]
+        sources = list({s["id"]: s for s in sources + [r["source"] for r in verified_records.values()]}.values())
+        trace["rounds"].append({"query": query, "web_query": web_query, "vector_queries": searches, "chunks": chunks, "web_results": found,
+                                "verified_web_evidence": [{"source": r["source"], "sha256": r["sha256"],
+                                                           "retrieved_at": r["retrieved_at"],
+                                                           "excerpt": " ".join(r["pages"])[:14000]} for r in verified],
+                                "rejected_web_results": rejected,
+                                "web_status": ("live" if found else "live; no results") if mode == "live" else "not called; reviewed source snapshot"})
         if mode == "live":
             # M1/M2 read web/source documents, M3 alone uses vector chunks for cross-checking.
-            web_documents = [{"source_id": r["source"]["id"], "text": "\n".join(r["pages"])[:14000]}
-                             for r in retriever.records if r["source"]["tech"] == tech] if perspective == "market" else []
+            web_documents = ([{"source_id": r["source"]["id"], "text": "\n".join(r["pages"])[:14000]}
+                              for r in retriever.records if r["source"]["tech"] == tech] if perspective == "market" else [])
+            if perspective == "market":
+                web_documents += [{"source_id": r["source"]["id"], "text": "\n".join(r["pages"])[:14000]}
+                                  for r in verified_records.values()]
             answer = ask(MarketAnswer if perspective == "market" else DomainAnswer, task,
-                         {"sources": sources, "discovery_only": found, "original_chunks": chunks,
+                         {"sources": sources, "unverified_discovery": found, "original_chunks": chunks,
                           "web_documents_for_M1_M2": web_documents, "last_search_round": attempt == 1})
             result = answer["result"]
             if result["tech"] != tech:
@@ -256,11 +276,17 @@ def evaluate(tech, perspective, retriever, mode, snapshot):
             correction = ask(MarketAnswer if perspective == "market" else DomainAnswer,
                              task + " 이전 응답이 코드 검증을 통과하지 못했다. 정확히 한 번 수정하라. "
                              + str(error) + " D1은 같은 기준의 reduction_pct 또는 expansion 중 하나만 숫자로 넣고 나머지는 null."
-                             " 같은 조건의 근거가 없으면 둘 다 null. 이 검증 오류를 이유로 출처 없는 수치를 만들지 말 것.",
+                             " 같은 조건의 근거가 없으면 둘 다 null. M3 Y에는 W 출처가 아닌 original_chunks의 source_id만 인용할 것."
+                             " 이 검증 오류를 이유로 출처 없는 수치를 만들지 말 것.",
                              {"previous_result": result, "sources": sources, "original_chunks": chunks,
-                              "web_documents_for_M1_M2": web_documents, "discovery_only": found})
-            result = validate(correction["result"], perspective, sources, chunks)
-            trace["correction"] = {"reason": str(error), "performed": True}
+                              "web_documents_for_M1_M2": web_documents, "unverified_discovery": found})
+            try:
+                result = validate(correction["result"], perspective, sources, chunks)
+                trace["correction"] = {"reason": str(error), "performed": True}
+            except ValueError as second_error:
+                trace["correction"] = {"reason": str(error), "performed": True,
+                                       "rejected": str(second_error)}
+                result = None
         if mode == "live":
             # The model proposes interpretations; fixed, source-reviewed observations
             # control the deliverable until a human updates the reviewed ledger.
@@ -270,7 +296,7 @@ def evaluate(tech, perspective, retriever, mode, snapshot):
             trace["adjudication"] = {
                 "policy": "reviewed evidence controls report; live proposal retained for audit",
                 "proposal": proposal,
-                "matched_reviewed_evidence": proposal == result,
+                "matched_reviewed_evidence": proposal is not None and proposal == result,
             }
         break
     trace["result"] = result

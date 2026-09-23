@@ -8,5 +8,6 @@ tmp/
 output/runs/
 output/replay/
 output/*/evaluation.json
+output/*/web_evidence.json
 output/*/checkpoints/
 .DS_Store

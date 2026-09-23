@@ -1,6 +1,6 @@
 # SUMMARY
 
-시장에서는 MLA 계열의 서비스 운영과 CXL 계열의 제품 기반이 서로 다른 형태로 확인된다. 도메인에서는 MLA의 KV 감소를 정량화할 수 있지만, PNM의 최대 문맥 수치는 동일 조건 증가 배수로 환산할 수 없다. 두 기술 모두 코딩·업무 에이전트의 TTFT·TPOT·비용을 함께 충족하는 근거가 부족해 응답성과 비용 효율은 판정을 유보한다. 이는 기술 우열이 아니라 공개 근거의 범위 차이를 보여준다. [S1] [S2] [S3] [S4] [S5] [S6] [S7] [S8] [S9]
+시장에서는 MLA 계열의 서비스 운영과 CXL 계열의 제품 기반이 서로 다른 형태로 확인된다. 도메인에서는 MLA의 KV 감소를 정량화할 수 있지만, PNM의 최대 문맥 수치는 동일 조건 증가 배수로 환산할 수 없다. 두 기술 모두 코딩·업무 에이전트의 TTFT·TPOT·비용을 함께 충족하는 근거가 부족해 응답성과 비용 효율은 판정을 유보한다. 이는 기술 우열이 아니라 공개 근거의 범위 차이를 보여준다. [S1] [S2] [S3] [S4] [S5] [S6] [S7] [S8] [S9] [S10] [S11]
 
 평가 기준일: 2026-09-23 | 대상: AI 코딩·업무 에이전트 | 시장·도메인 2개 관점
 
@@ -76,7 +76,7 @@ KV 감소율 r은 1/(1-r)의 동일 예산 환산치로 변환하거나, 같은 
 
 채택 확대 2/2: V2 이후 V3가 MLA를 유지하고, V3 기반 R1을 AWS가 일반 제공하며 실제 고객 배포를 보고했다. 계열 확산 근거이며 V2 자체의 고객 수는 아니다. [S5] [S8] [S9]
 
-공급·생태계 투자 1/2: vLLM MLA 백엔드와 FlashMLA 구현은 공급 기반의 존재를 뒷받침한다. 투자 규모의 연속 증가를 증명하지는 않는다. [S3] [S4]
+공급·생태계 투자 1/2: vLLM MLA 백엔드와 DeepSeek-V2 구현, FlashMLA는 공급 기반의 존재를 뒷받침한다. 투자 규모의 연속 증가를 증명하지는 않는다. [S3] [S4] [S10]
 
 ## M2 채택: 선정 L1 / 계열 L4
 
@@ -86,7 +86,7 @@ AWS / Amazon Bedrock 고객 · 계열 · L4: AWS는 R1의 정식 서비스와 �
 
 ## M3 생태계: L2 (2/4)
 
-프레임워크 Y: vLLM 문서가 MLA 전용 prefill/decode 백엔드를 열거한다. [S3]
+프레임워크 Y: vLLM 문서가 MLA 전용 prefill/decode 백엔드와 DeepSeek-V2 MLA 구현을 보여준다. [S3] [S10]
 
 벤더 제품 Y: AWS의 R1 서비스 제공과 원 모델 계보로 MLA 계열 제품을 확인한다. [S5] [S8] [S9]
 
@@ -102,11 +102,11 @@ M1은 2026-09-23부터 3년을 바라보는 정성적 전망이다. 4점은 성�
 
 ## M1 성장성: 보통 (3/6)
 
-수요 동인 1/2: 장문맥과 외부 KV 메모리의 전송 병목은 논문이 다룬다. 실제 고객 수요가 연속 증가했다는 자료는 부족하다. [S2]
+수요 동인 1/2: 선정 논문은 장문맥의 외부 KV 메모리 병목을 다루고, Samsung은 CXL 메모리 풀링을 통한 KV 수용량 확장을 발표했다. 후자는 CXL 계열 자료이며 선정 PNM 구현의 수요 시계열은 아니다. [S2] [S11]
 
 채택 확대 1/2: CXL 메모리 계열 제품 페이지는 확인되지만 선정 PNM-KV/PnG-KV의 상용 고객 사례는 확인되지 않았다. [S6] [S2]
 
-공급·생태계 투자 1/2: CXL 규격과 메모리 제품이 기반을 제공한다. 선정 PNM 구조에 대한 지속 투자 규모와 대량 출하는 별도 검증이 필요하다. [S7] [S6]
+공급·생태계 투자 1/2: CXL 규격·제품과 벤더의 KV 메모리 풀링 발표가 계열 기반을 보여준다. 선정 PNM 구조의 지속 투자 규모와 대량 출하는 별도 검증이 필요하다. [S7] [S6] [S11]
 
 ## M2 채택: 선정 L1 / 계열 L3
 
@@ -174,7 +174,7 @@ M1 세부 3항목과 D2 판정 유보 정책은 미정의 부분을 보완한 �
 
 ## 실행 추적
 
-원문 9개, PDF 실페이지와 웹 환산페이지 합계 152페이지. 웹은 3,000자당 1페이지로 별도 환산했다. 임베딩: intfloat/multilingual-e5-small. 검색 청크 ID와 원문 해시, 검색어, 판정 입력은 evaluation.json과 실행 trace에 기록했다.
+원문 11개, PDF 실페이지와 웹 환산페이지 합계 169페이지. 웹은 3,000자당 1페이지로 별도 환산했다. 임베딩: intfloat/multilingual-e5-small. 검색 청크 ID와 원문 해시, 검색어, 판정 입력은 evaluation.json과 실행 trace에 기록했다.
 
 시장 평가는 WebSearch와 M3 원문 교차 확인, 도메인 평가는 VectorRetriever와 WebSearch를 사용한다. 실시간 모드의 모델 제안은 evaluation.json에 남긴다. 검토 원장과 불일치한 수치·해석은 보고서에 반영하지 않고, 종합 의견도 검토된 기록으로 구성한다. 재현 모드는 WebSearch·OpenAI 호출을 생략한다.
 
@@ -197,5 +197,9 @@ M1 세부 3항목과 D2 판정 유보 정책은 미정의 부분을 보완한 �
 [S8] DeepSeek-AI (발행일 미표기). DeepSeek-R1. GitHub. https://github.com/deepseek-ai/DeepSeek-R1 (확인: 2026-09-23)
 
 [S9] DeepSeek-AI (2024-12-27). DeepSeek-V3 Technical Report. arXiv:2412.19437v1. https://arxiv.org/abs/2412.19437v1 (확인: 2026-09-23)
+
+[S10] vLLM (발행일 미표기). vllm.model_executor.models.deepseek_v2. vLLM Documentation. https://docs.vllm.ai/en/stable/api/vllm/model_executor/models/deepseek_v2/ (확인: 2026-09-23)
+
+[S11] Samsung Semiconductor (발행일 미표기). Breaking AI Memory Limits with CXL Memory Pooling. Samsung Semiconductor Global. https://semiconductor.samsung.com/news-events/tech-blog/breaking-ai-memory-limits-with-cxl-memory-pooling/ (확인: 2026-09-23)
 
 arXiv 자료는 프리프린트로 기재했다. 확인되지 않은 학술지·권호·페이지와 발행일은 만들어 넣지 않았다. 웹 문서 확인일은 발행일이 아니다.

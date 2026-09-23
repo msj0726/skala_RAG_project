@@ -5,11 +5,45 @@ import unittest
 from unittest.mock import patch, Mock
 
 from agents import validate, ask, Plan, evaluate
-from retrieval import ROOT, read_sources
+from retrieval import ROOT, read_sources, fetch_source, verify_web_results
 from scoring import growth, adoption, ecosystem, capacity, responsiveness
 
 
 class RubricTests(unittest.TestCase):
+    def test_attached_papers_are_the_rag_originals(self):
+        for source in read_sources()[:2]:
+            record = fetch_source(source)
+            self.assertEqual(record["sha256"], source["sha256"])
+            self.assertGreater(len(record["pages"]), 10)
+            self.assertIn(source["title"].split(":")[0], record["pages"][0])
+
+    def test_reviewed_web_sources_match_saved_originals(self):
+        ledger = json.loads((ROOT / "data/source_verification.json").read_text())
+        for item in ledger["sources"]:
+            self.assertIn(item["id"], {s["id"] for s in read_sources()})
+            self.assertEqual(len(item["sha256"]), 64)
+            path = ROOT / "data/raw" / (item["id"] + ".json")
+            if path.exists():
+                record = json.loads(path.read_text())
+                self.assertEqual(record["sha256"], item["sha256"])
+                self.assertGreater(len(" ".join(record["pages"])), 1000)
+
+    def test_web_evidence_requires_fetched_primary_page_and_topic(self):
+        page = Mock(ok=True, content=b"DeepSeek MLA Multi-head Latent Attention framework implementation " * 5,
+                    headers={"content-type": "text/html"})
+        page.raise_for_status.return_value = None
+        results = [{"url": "https://github.com/deepseek-ai/FlashMLA?utm_source=openai", "title": "FlashMLA"},
+                   {"url": "https://example.org/claim", "title": "unsupported"}]
+        with patch("retrieval.requests.get", return_value=page) as get:
+            accepted, rejected = verify_web_results(results, "MLA")
+        self.assertEqual(len(accepted), 1)
+        self.assertEqual(accepted[0]["source"]["url"], "https://github.com/deepseek-ai/FlashMLA")
+        self.assertEqual(len(rejected), 1)
+        self.assertFalse(get.call_args.kwargs["allow_redirects"])
+        with patch("retrieval.requests.get", return_value=page):
+            accepted, _ = verify_web_results(results[:1], "MLA", [{"id": "S10", "tech": "MLA", "url": "https://github.com/deepseek-ai/FlashMLA"}])
+        self.assertEqual(accepted[0]["source"]["id"], "S10")
+
     def test_growth_and_ecosystem(self):
         self.assertEqual([growth(p)["label"] for p in ([0,0,0], [0,0,1], [0,1,1], [1,1,1], [2,1,1], [2,2,1], [2,2,2])],
                          ["낮음", "낮음", "보통", "보통", "높음", "높음", "매우 높음"])
@@ -86,6 +120,7 @@ class RubricTests(unittest.TestCase):
         with patch("agents.ask", side_effect=responses), patch("agents.web_search", return_value=[{"url":"https://example.org"}]) as search:
             evaluated, trace = evaluate("MLA", "market", retriever, "live", snapshot)
         self.assertEqual(search.call_count, 2)
+        self.assertIn("DeepSeek-V2 MLA KV cache", search.call_args.args[0])
         self.assertEqual(trace["rounds"][1]["query"], "specific followup")
         self.assertEqual(evaluated["scores"]["M1"]["score"], 4)
 
@@ -103,6 +138,25 @@ class RubricTests(unittest.TestCase):
         self.assertEqual(assessed["scores"]["M2_selected"], "L1")
         self.assertEqual(trace["adjudication"]["proposal"]["scores"]["M2_selected"], "L4")
         self.assertFalse(trace["adjudication"]["matched_reviewed_evidence"])
+
+    def test_rejected_web_claim_stays_out_of_report(self):
+        snapshot = json.loads((ROOT / "data/reviewed_evidence.json").read_text())
+        proposal = copy.deepcopy(snapshot["market"][0])
+        proposal["ecosystem"][0]["refs"] = ["Wtest"]
+        retriever = Mock()
+        retriever.records = [{"source": s, "pages": ["original"]} for s in read_sources()]
+        retriever.search.side_effect = lambda q, tech, ids, k: [{"id": ids[0] + ":p1:t0", "source_id": ids[0], "text": "original"}]
+        verified = [{"source": {"id": "Wtest", "tech": "MLA", "scope": "family", "url": "https://github.com/test"},
+                     "pages": ["DeepSeek MLA"], "sha256": "test", "retrieved_at": "now"}]
+        with patch("agents.ask", side_effect=[{"query": "search", "missing_evidence": ""},
+                                              {"result": proposal, "needs_more": False, "followup_query": ""},
+                                              {"result": proposal, "needs_more": False, "followup_query": ""}]), \
+             patch("agents.web_search", return_value=[{"url": "https://github.com/test"}]), \
+             patch("agents.verify_web_results", return_value=(verified, [])):
+            assessed, trace = evaluate("MLA", "market", retriever, "live", snapshot)
+        self.assertEqual(assessed["scores"]["M3"]["label"], "L2")
+        self.assertIsNone(trace["adjudication"]["proposal"])
+        self.assertIn("rejected", trace["correction"])
 
     def test_graph_joins_both_perspectives_before_report(self):
         from main import build_graph

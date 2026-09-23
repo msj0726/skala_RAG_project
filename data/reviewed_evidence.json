@@ -7,14 +7,14 @@
       "growth": [
         {"name":"수요 동인","points":1,"reason":"장문맥 KV 부담을 줄이는 메커니즘은 확인되지만 향후 3년의 기술별 수요 시계열·시장 규모는 확보하지 못했다.","refs":["S1"]},
         {"name":"채택 확대","points":2,"reason":"V2 이후 V3가 MLA를 유지하고, V3 기반 R1을 AWS가 일반 제공하며 실제 고객 배포를 보고했다. 계열 확산 근거이며 V2 자체의 고객 수는 아니다.","refs":["S5","S8","S9"]},
-        {"name":"공급·생태계 투자","points":1,"reason":"vLLM MLA 백엔드와 FlashMLA 구현은 공급 기반의 존재를 뒷받침한다. 투자 규모의 연속 증가를 증명하지는 않는다.","refs":["S3","S4"]}
+        {"name":"공급·생태계 투자","points":1,"reason":"vLLM MLA 백엔드와 DeepSeek-V2 구현, FlashMLA는 공급 기반의 존재를 뒷받침한다. 투자 규모의 연속 증가를 증명하지는 않는다.","refs":["S3","S4","S10"]}
       ],
       "cases": [
         {"actor":"DeepSeek-AI","level":1,"scope":"selected","reason":"V2 논문과 모델 공개를 확인했다. 본 자료 풀만으로 V2의 현재 상용 운영을 확정하지 않는다.","refs":["S1"]},
         {"actor":"AWS / Amazon Bedrock 고객","level":4,"scope":"family","reason":"AWS는 R1의 정식 서비스와 수천 고객의 배포를 보고했다. R1→V3→MLA 연결은 모델 원문으로 확인했다. 벤더 자기보고이며 선정 V2의 운영 증거는 아니다.","refs":["S5","S8","S9"]}
       ],
       "ecosystem": [
-        {"name":"프레임워크","present":true,"reason":"vLLM 문서가 MLA 전용 prefill/decode 백엔드를 열거한다.","refs":["S3"]},
+        {"name":"프레임워크","present":true,"reason":"vLLM 문서가 MLA 전용 prefill/decode 백엔드와 DeepSeek-V2 MLA 구현을 보여준다.","refs":["S3","S10"]},
         {"name":"벤더 제품","present":true,"reason":"AWS의 R1 서비스 제공과 원 모델 계보로 MLA 계열 제품을 확인한다.","refs":["S5","S8","S9"]},
         {"name":"표준화","present":false,"reason":"조사 자료에서 MLA 자체의 산업 표준은 확인하지 못했다.","refs":[]},
         {"name":"제3자 연구·도구","present":false,"reason":"중복 집계를 피하고 vLLM은 프레임워크로만 계수했다. FlashMLA는 원 개발자의 도구로, 제3자 항목에 포함하지 않았다.","refs":["S3","S4"]}
@@ -26,9 +26,9 @@
     {
       "tech":"PNM",
       "growth":[
-        {"name":"수요 동인","points":1,"reason":"장문맥과 외부 KV 메모리의 전송 병목은 논문이 다룬다. 실제 고객 수요가 연속 증가했다는 자료는 부족하다.","refs":["S2"]},
+        {"name":"수요 동인","points":1,"reason":"선정 논문은 장문맥의 외부 KV 메모리 병목을 다루고, Samsung은 CXL 메모리 풀링을 통한 KV 수용량 확장을 발표했다. 후자는 CXL 계열 자료이며 선정 PNM 구현의 수요 시계열은 아니다.","refs":["S2","S11"]},
         {"name":"채택 확대","points":1,"reason":"CXL 메모리 계열 제품 페이지는 확인되지만 선정 PNM-KV/PnG-KV의 상용 고객 사례는 확인되지 않았다.","refs":["S6","S2"]},
-        {"name":"공급·생태계 투자","points":1,"reason":"CXL 규격과 메모리 제품이 기반을 제공한다. 선정 PNM 구조에 대한 지속 투자 규모와 대량 출하는 별도 검증이 필요하다.","refs":["S7","S6"]}
+        {"name":"공급·생태계 투자","points":1,"reason":"CXL 규격·제품과 벤더의 KV 메모리 풀링 발표가 계열 기반을 보여준다. 선정 PNM 구조의 지속 투자 규모와 대량 출하는 별도 검증이 필요하다.","refs":["S7","S6","S11"]}
       ],
       "cases":[
         {"actor":"Kim et al. 연구팀","level":1,"scope":"selected","reason":"논문은 합성 타이밍·전력 모델로 보정한 사이클 수준 시뮬레이터를 평가에 사용했다. 이 자료만으로 현장 PoC 또는 상용 운영으로 올리지 않는다.","refs":["S2"]},
@@ -74,6 +74,6 @@
       "M1 세부 3항목과 D2 판정 유보 정책은 미정의 부분을 보완한 운영 규칙이다. M3에서는 동일 근거를 여러 범주에 중복 집계하지 않았다.",
       "검색 원문에 근거 ID·페이지·범위를 연결하고, 긍정 주장과 제약을 함께 기록했다. 미확인 자료를 실패나 부존재로 단정하지 않으며 합산 승자를 만들지 않았다."
     ],
-    "refs":["S1","S2","S3","S4","S5","S6","S7","S8","S9"]
+    "refs":["S1","S2","S3","S4","S5","S6","S7","S8","S9","S10","S11"]
   }
 }

@@ -1,0 +1,18 @@
+{
+  "verified_at": "2026-09-23",
+  "method": "검색 URL을 독립적으로 열어 원문 본문, 발행처, 기술 관련 구절을 확인했다. SHA-256은 수집 시점 원문 바이트의 값이며 웹페이지는 이후 바뀔 수 있다.",
+  "sources": [
+    {
+      "id": "S10",
+      "sha256": "cc320c004fe1a18443ce25d68bfa6365f192ea1640f21497c8fc3084f23ad642",
+      "verified_claim": "vLLM API 문서에 DeepseekV2MLAAttention 구현이 명시되어 있다.",
+      "scope_limit": "프레임워크 구현 근거이며 특정 운영 고객 수나 시장 성장률 근거가 아니다."
+    },
+    {
+      "id": "S11",
+      "sha256": "03cd43d68029cd15615c960cc9216956115257dcc57dc2c14e0ab259ec58771a",
+      "verified_claim": "Samsung 원문은 LLM 추론용 KV cache 용량 확장과 CXL 메모리 풀링을 함께 다룬다.",
+      "scope_limit": "CXL 메모리 계열 자료이며 선정 PNM-KV/PnG-KV 논문의 제품화·상용 운영 근거가 아니다."
+    }
+  ]
+}

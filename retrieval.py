@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 from datetime import datetime, timezone
+from urllib.parse import urlsplit, urlunsplit
 
 import numpy as np
 import requests
@@ -20,15 +21,26 @@ def read_sources():
     return json.loads((ROOT / "data/sources.json").read_text())
 
 
-def fetch_source(source):
-    url = source.get("download", source["url"])
-    response = requests.get(url, timeout=60, headers={"User-Agent": "KVCacheCourseResearch/1.0"})
-    response.raise_for_status()
-    if "/pdf/" in url or "application/pdf" in response.headers.get("content-type", ""):
-        pages = [p.extract_text() or "" for p in PdfReader(io.BytesIO(response.content)).pages]
+def fetch_source(source, allow_redirects=True):
+    local = source.get("local_file")
+    if local:
+        path = (ROOT / local).resolve()
+        if not path.is_relative_to(ROOT / "data/papers"):
+            raise ValueError(f"{source['id']}: local PDF must be under data/papers")
+        content = path.read_bytes()
+        if hashlib.sha256(content).hexdigest() != source["sha256"]:
+            raise ValueError(f"{source['id']}: local PDF hash mismatch")
+        content_type = "application/pdf"
+    else:
+        url = source.get("download", source["url"])
+        response = requests.get(url, timeout=60, headers={"User-Agent": "KVCacheCourseResearch/1.0"}, allow_redirects=allow_redirects)
+        response.raise_for_status()
+        content, content_type = response.content, response.headers.get("content-type", "")
+    if local or "/pdf/" in source.get("download", source["url"]) or "application/pdf" in content_type:
+        pages = [p.extract_text() or "" for p in PdfReader(io.BytesIO(content)).pages]
         pagination = "PDF page"
     else:
-        soup = BeautifulSoup(response.text, "html.parser")
+        soup = BeautifulSoup(content, "html.parser")
         for tag in soup(["script", "style", "nav", "header", "footer"]):
             tag.decompose()
         body = soup.find("main") or soup.find("article") or soup
@@ -41,7 +53,7 @@ def fetch_source(source):
     if not pages or not any(p.strip() for p in pages):
         raise ValueError(f"{source['id']}: no extractable text")
     return {"source": source, "pages": pages, "pagination": pagination,
-            "sha256": hashlib.sha256(response.content).hexdigest(),
+            "sha256": hashlib.sha256(content).hexdigest(),
             "retrieved_at": datetime.now(timezone.utc).isoformat()}
 
 
@@ -53,7 +65,10 @@ def prepare():
         path = directory / f"{source['id']}.json"
         record = json.loads(path.read_text()) if path.exists() else fetch_source(source)
         if record["source"] != source:
-            raise ValueError(f"{source['id']}: cached manifest differs; remove its raw cache and prepare again")
+            if source.get("local_file") and record["sha256"] == source["sha256"]:
+                record["source"] = source
+            else:
+                raise ValueError(f"{source['id']}: cached manifest differs; remove its raw cache and prepare again")
         records.append(record)
         if sum(len(r["pages"]) for r in records) > 200:
             raise ValueError("RAG corpus exceeds 200 pages including web equivalents")
@@ -136,6 +151,46 @@ def web_search(query):
                     result = {"title": annotation.get("title", ""), "url": annotation["url"], "snippet": ""}
                     if result["url"] not in {r["url"] for r in results}:
                         results.append(result)
-    if not results:
-        raise RuntimeError("WebSearch returned no results; check search connectivity")
     return results[:5]
+
+
+ALLOWED_WEB_HOSTS = {"arxiv.org", "docs.vllm.ai", "github.com", "raw.githubusercontent.com",
+                     "huggingface.co", "aws.amazon.com", "semiconductor.samsung.com",
+                     "computeexpresslink.org"}
+
+
+def verify_web_results(results, tech, known_sources=(), limit=2):
+    """Admit fetched, topic-matching primary pages; never treat a search snippet as evidence."""
+    accepted, rejected = [], []
+    known = {s["url"].split("?", 1)[0]: s for s in known_sources if s["tech"] == tech}
+    for item in results:
+        raw_url = item.get("url", "")
+        parts = urlsplit(raw_url)
+        host = (parts.hostname or "").lower()
+        try:
+            valid_port = parts.port in (None, 443)
+        except ValueError:
+            valid_port = False
+        if parts.scheme != "https" or host not in ALLOWED_WEB_HOSTS or not valid_port or parts.username or parts.password:
+            rejected.append({"url": raw_url, "reason": "unapproved host or URL"})
+            continue
+        url = urlunsplit(("https", parts.netloc.lower(), parts.path, "", ""))
+        source = dict(known.get(url) or {"id": "W" + hashlib.sha256(url.encode()).hexdigest()[:10], "tech": tech,
+                                         "scope": "family", "kind": "web", "author": host, "date": None,
+                                         "title": item.get("title") or url, "venue": host, "url": url})
+        try:
+            record = fetch_source(source, allow_redirects=False)
+            body = " ".join(record["pages"][:20]).lower()
+            if tech == "MLA":
+                relevant = "deepseek" in body and ("mla" in body or "latent attention" in body)
+            else:
+                relevant = "cxl" in body and ("kv cache" in body or "kv-cache" in body or "near-memory" in body)
+            if not relevant:
+                raise ValueError("page text does not support the selected technology topic")
+            record["source"]["title"] = item.get("title") or source["title"]
+            accepted.append(record)
+        except (OSError, ValueError, requests.RequestException) as error:
+            rejected.append({"url": url, "reason": str(error)[:160]})
+        if len(accepted) >= limit:
+            break
+    return accepted, rejected

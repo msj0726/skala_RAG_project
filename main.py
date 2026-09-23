@@ -36,7 +36,7 @@ def build_graph(retriever, snapshot, output):
                 checkpoint = output / "checkpoints" / f"{name}_{tech}.json"
                 cache_key = {"index": retriever.fingerprint,
                              "model": os.getenv("OPENAI_MODEL", "gpt-4.1-mini-2025-04-14"),
-                             "rubric_version": "2026-09-23-v1"}
+                             "rubric_version": "2026-09-23-web-verified-v6"}
                 cached = json.loads(checkpoint.read_text()) if state["mode"] == "live" and checkpoint.exists() else None
                 if cached and cached.get("key") == cache_key:
                     result, trace = cached["result"], cached["trace"]
@@ -106,6 +106,19 @@ def main():
                           "sources": [r["source"] for r in retriever.records],
                           "corpus_pages": sum(len(r["pages"]) for r in retriever.records),
                           "embedding_model": retriever.model_name})
+    web_evidence = {}
+    for perspective in ("market", "domain"):
+        for trace in state[perspective + "_trace"]:
+            proposal_refs = set(refs_in(trace.get("adjudication", {}).get("proposal", {})))
+            for round_ in trace["rounds"]:
+                for evidence in round_.get("verified_web_evidence", []):
+                    source_id = evidence["source"]["id"]
+                    web_evidence[source_id] = dict(evidence, perspective=perspective,
+                                                   tech=trace["tech"], proposed_citation=source_id in proposal_refs,
+                                                   final_citation=False,
+                                                   verification="HTTPS approved publisher; page fetched; relevant original text and SHA-256 recorded; claim not human-reviewed")
+    state["web_evidence"] = list(web_evidence.values())
+    (output / "web_evidence.json").write_text(json.dumps(state["web_evidence"], ensure_ascii=False, indent=2))
     state["execution"] = {"completed_at": datetime.now(timezone.utc).isoformat(),
                           "llm_model": os.getenv("OPENAI_MODEL", "gpt-4.1-mini-2025-04-14") if args.mode == "live" else None,
                           "index_fingerprint": retriever.fingerprint,
