@@ -36,7 +36,7 @@ def build_graph(retriever, snapshot, output):
                 checkpoint = output / "checkpoints" / f"{name}_{tech}.json"
                 cache_key = {"index": retriever.fingerprint,
                              "model": os.getenv("OPENAI_MODEL", "gpt-4.1-mini-2025-04-14"),
-                             "rubric_version": "2026-09-23-web-verified-v6"}
+                             "rubric_version": "2026-09-23-throughput-v7"}
                 cached = json.loads(checkpoint.read_text()) if state["mode"] == "live" and checkpoint.exists() else None
                 if cached and cached.get("key") == cache_key:
                     result, trace = cached["result"], cached["trace"]

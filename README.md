@@ -31,6 +31,7 @@ python -m unittest -v
 ## 산출물
 
 - `output/live/report.pdf`: 실제 API 실행 평가 보고서(10페이지 초과 시 생성 실패)
+- `output/live/report.docx`: 같은 내용의 편집 가능한 Word 보고서 (`python word_report.py output/live`)
 - `output/replay/report.pdf`: 검토 기록 기반 재현 보고서
 - `report.md`: 같은 내용의 편집 가능한 본문
 - `evaluation.json`: 점수 입력·채점 결과·출처·원문 청크·검색 결과·실행 모드
@@ -54,7 +55,7 @@ flowchart TD
 | 구성 | 역할 / 도구 |
 | --- | --- |
 | 시장 평가 | OpenAI가 검색어 계획 → OpenAI WebSearch → M1·M2 원문 문서 확인, M3만 VectorRetriever 청크로 교차 확인 → 근거 부족 시 1회 재검색 |
-| 도메인 평가 | OpenAI가 검색어 계획 → VectorRetriever + OpenAI WebSearch → 선정 논문의 비교 조건·KV·TTFT·TPOT·비용 확인 → 근거 부족 시 1회 재검색 |
+| 도메인 평가 | OpenAI가 검색어 계획 → VectorRetriever + OpenAI WebSearch → 선정 논문의 비교 조건·KV·생성 처리량 확인 → 근거 부족 시 1회 재검색 |
 | 종합 평가 | 검토된 원장을 기준으로 두 관점의 차이와 한계를 설명. 새 수치·출처·합산 순위를 추가하지 않음 |
 | 보고서 작성 | 검증된 State를 정해진 목차로 렌더링. 추가 LLM 없이 코드로 PDF 생성 |
 
@@ -74,15 +75,15 @@ E5 권장 `query:` / `passage:` 접두사, 정규화 임베딩, NumPy cosine 검
 | M2 | 채택 주체·출처가 있는 사례의 최고 L0~L4. 선정 기술과 기술 계열을 각각 계산 |
 | M3 | 프레임워크·벤더 제품·표준화·제3자 연구/도구의 Y 수. 3~4 L3, 1~2 L2, 0+원저자 구현 L1, 모두 없음 L0 |
 | D1 | KV 감소율을 `1/(1-r)`로 환산하거나 같은 조건의 문맥 증가 배수. 4 이상 L3, 2 이상 L2, 1 초과 L1, 이외·근거 없음 L0 |
-| D2 | 비용 절감+SLA 충족하에 TTFT·TPOT의 최대 증가율: 0 이하 L3, 10% 이하 L2, 초과 L1. 절감 없음/SLA 미충족 L0. 필수 근거 미확인 시 판정 유보 |
+| D2 | 선정 논문의 자체 기준 대비 최대 생성 처리량 개선: 4배 이상 L3, 2배 이상 L2, 1배 초과 L1, 개선 없음·감소 L0. 근거 없으면 판정 유보 |
 
-M1 세부 항목, D1 구간 경계, D2의 판정 유보는 사용자의 정의에서 미정인 부분을 보완한 **운영 가정**입니다. L0(실패·개선 없음)와 자료 부족을 설명에서 구분합니다. 93.3% 감소의 역수는 세션 길이 실측이 아니며, 서로 다른 구성의 128K와 1M을 나누어 D1을 매기지 않습니다. 처리량을 TTFT로, KV 감소율을 전체 비용 감소율로 사용하지 않습니다.
+M1 세부 항목과 새 D2의 배수 구간은 **운영 가정**입니다. L0(개선 없음)와 자료 부족을 구분합니다. 93.3% 감소의 역수는 세션 길이 실측이 아니며, 서로 다른 구성의 128K와 1M을 나누어 D1을 매기지 않습니다. MLA 5.76배는 전체 서빙 구성의 실측, PNM 최대 21.9배는 시뮬레이션으로, 기준·부하가 달라 직접 비교하지 않습니다. 어느 것도 코딩 에이전트의 지연·비용 검증을 뜻하지 않습니다.
 
 ## 보고서와 검증
 
 첫 챕터 `SUMMARY`(반 페이지 이내 핵심 요약), 마지막 `REFERENCE`. 시장·도메인만 평가하며 특허·논문·웹 자료의 실사용 출처만 기록합니다. 미확인 발행일·학술지 정보를 만들어 넣지 않습니다. 선정 논문과 기술 계열의 근거는 분리합니다.
 
-`python -m unittest -v`의 13개 검사는 점수 경계, 첨부 논문 해시, 웹 출처 검증, 출처 위조·범위 혼합, M3 원문 청크 누락, OpenAI 응답 형식·실패 처리, 재검색 1회 제한, 병렬 평가 합류, 근거 없는 주장 차단, 보고서 장 구성·SUMMARY 형식을 점검합니다. live API 실행은 유효한 키와 모델 접근 권한이 있어야 검증할 수 있습니다. LLM의 의미 해석과 사실의 정확성은 JSON 스키마만으로 보장되지 않으므로 최종 제출 전 근거를 검토해야 합니다.
+`python -m unittest -v`의 13개 검사는 점수 경계, 첨부 논문 해시, 웹 출처 검증, 출처 위조·범위 혼합, M3 원문 청크 누락, OpenAI 응답 형식·실패 처리, 재검색 1회 제한, 병렬 평가 합류, 근거 없는 주장 차단, 보고서 장 구성·SUMMARY 형식을 점검합니다. live API 실행은 유효한 키와 모델 접근 권한이 있어야 검증할 수 있습니다. LLM의 의미 해석과 사실의 정확성은 JSON 스키마만으로 보장되지 않으므로 최종 제출 전 근거를 검토해야 합니다. Word 파일 재생성에는 `python-docx`가 필요합니다.
 
 공식 구현 문서: [LangGraph](https://docs.langchain.com/oss/python/langgraph/graph-api), [OpenAI Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs), [E5 모델 카드](https://huggingface.co/intfloat/multilingual-e5-small).
 

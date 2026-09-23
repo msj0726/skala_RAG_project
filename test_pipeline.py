@@ -6,7 +6,7 @@ from unittest.mock import patch, Mock
 
 from agents import validate, ask, Plan, evaluate
 from retrieval import ROOT, read_sources, fetch_source, verify_web_results
-from scoring import growth, adoption, ecosystem, capacity, responsiveness
+from scoring import growth, adoption, ecosystem, capacity, throughput
 
 
 class RubricTests(unittest.TestCase):
@@ -61,14 +61,15 @@ class RubricTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 capacity(expansion=invalid)
 
-    def test_response_missing_and_failure_are_distinct(self):
-        self.assertEqual(responsiveness(None, None, None, None)["label"], "판정 유보")
-        self.assertEqual(responsiveness(None, None, 0, None)["label"], "L0")
-        self.assertEqual(responsiveness(0, 0, 5, True)["label"], "L3")
-        self.assertEqual(responsiveness(0, 10, 5, True)["label"], "L2")
-        self.assertEqual(responsiveness(0, 10.01, 5, True)["label"], "L1")
-        self.assertEqual(responsiveness(-5, -5, 5, False)["label"], "L0")
-        self.assertEqual(responsiveness(0, 0, -200, True)["label"], "L0")
+    def test_throughput_boundaries_and_reviewed_factors(self):
+        self.assertEqual([throughput(x)["label"] for x in (None, 1, 1.01, 2, 3.99, 4)],
+                         ["판정 유보", "L0", "L1", "L2", "L2", "L3"])
+        for invalid in (float("nan"), float("inf"), -1, True):
+            with self.assertRaises(ValueError):
+                throughput(invalid)
+        snapshot = json.loads((ROOT / "data/reviewed_evidence.json").read_text())
+        self.assertEqual([throughput(x["throughput"]["improvement_factor"])["label"]
+                          for x in snapshot["domain"]], ["L3", "L3"])
 
     def test_provenance_and_scope(self):
         snapshot = json.loads((ROOT / "data/reviewed_evidence.json").read_text())

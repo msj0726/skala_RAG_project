@@ -7,7 +7,7 @@ import requests
 from pydantic import BaseModel, ConfigDict, Field
 
 from retrieval import web_search, verify_web_results
-from scoring import growth, adoption, ecosystem, capacity, responsiveness
+from scoring import growth, adoption, ecosystem, capacity, throughput
 
 
 class StrictModel(BaseModel):
@@ -53,11 +53,8 @@ class Capacity(StrictModel):
     refs: list[str]
 
 
-class Response(StrictModel):
-    ttft_change_pct: float | None
-    tpot_change_pct: float | None
-    cost_reduction_pct: float | None
-    sla_met: bool | None
+class Throughput(StrictModel):
+    improvement_factor: float | None
     basis: str
     refs: list[str]
 
@@ -65,7 +62,7 @@ class Response(StrictModel):
 class Domain(StrictModel):
     tech: Literal["MLA", "PNM"]
     capacity: Capacity
-    responsiveness: Response
+    throughput: Throughput
     application: str
     limitations: str
 
@@ -108,16 +105,18 @@ M3: 프레임워크/벤더 제품/표준화/제3자 연구·도구 네 항목. Y
 같은 구현을 범주 간 중복 계수하지 않는다. N은 미확인이지 부존재가 아니다.
 D1: 같은 비교 조건에서 KV 감소율 또는 최대 문맥 증가 배수 하나만 입력.
 93.3% 감소의 역수는 예산 환산이며 실측 세션 길이가 아니다. 서로 다른 하드웨어의 128K와 1M을 나누지 않는다.
-D2: 동일 조건 TTFT, TPOT, 비용, SLA의 값을 입력. 지연은 증가율(음수=개선), 비용은 감소율(양수=절감).
-처리량을 TTFT/TPOT로 치환하지 말고 KV 감소를 총비용 감소로 치환하지 않는다. 미확인은 null.
+D2: 동시 세션에서의 최대 생성 처리량 개선. 선정 논문 안의 자체 기준 대비 배수만 improvement_factor에 입력한다.
+4배 이상 L3, 2배 이상 L2, 1배 초과 L1, 개선 없음 L0. 다른 모델·하드웨어·실험 조건의 수치를 기술 간 직접 비교하지 않는다.
+DeepSeek-V2의 5.76배는 MLA 단독 효과가 아닌 모델 구조·FP8·KV 양자화가 포함된 서빙 구성이다.
+CXL-PNM의 최대 21.9배는 사이클 수준 시뮬레이션이며 코딩 에이전트 실측이 아니다. 두 제한을 basis에 명시한다.
 필요 근거가 없으면 needs_more=true와 구체적 후속 검색어를 반환한다. 재검색 후에도 없으면 null/미확인 유지.
 """
 
 # Rubric-specific probes supplement the agent's query; the agent can still re-search once.
 PROBES = {
-    "S1": ["KV cache 93.3% reduction compared DeepSeek 67B 128K", "inference efficiency generation latency throughput"],
+    "S1": ["KV cache 93.3% reduction compared DeepSeek 67B 128K", "single node eight H800 generation throughput 5.76 times FP8 KV quantization actual deployed"],
     "S2": ["Evaluation Settings Hardware Implementation cycle-level simulator synthesized timing power",
-           "maximum context 128K 1M baseline GPU PNM capacity", "decode per-token latency total cost ownership throughput dollar"],
+           "maximum context 128K 1M baseline GPU PNM capacity", "up to 21.9 times throughput improvement cycle-level simulator baseline"],
     "S3": ["MLA prefill decode attention backends support"],
     "S4": ["FlashMLA efficient multi-head latent attention kernels implementation"],
     "S5": ["generally available thousands customers deployed DeepSeek R1 Bedrock"],
@@ -202,7 +201,7 @@ def validate(result, perspective, sources, chunks):
                             "M3": ecosystem([x["present"] for x in parsed["ecosystem"]], parsed["author_implementation"])}
     else:
         selected = {s["id"] for s in sources if s["scope"] == "selected" and s["tech"] == parsed["tech"]}
-        for name in ("capacity", "responsiveness"):
+        for name in ("capacity", "throughput"):
             record = parsed[name]
             if not set(record["refs"]) <= selected & chunk_sources:
                 raise ValueError("Domain metrics require selected-paper original chunks")
@@ -210,7 +209,7 @@ def validate(result, perspective, sources, chunks):
                 raise ValueError("Domain measurement without evidence")
         parsed["scores"] = {
             "D1": capacity(parsed["capacity"]["reduction_pct"], parsed["capacity"]["expansion"]),
-            "D2": responsiveness(**{k: v for k, v in parsed["responsiveness"].items() if k not in ("basis", "refs")})}
+            "D2": throughput(parsed["throughput"]["improvement_factor"])}
     return parsed
 
 
@@ -219,7 +218,7 @@ def evaluate(tech, perspective, retriever, mode, snapshot):
     task = f"{tech} / {perspective} 평가. 평가일 2026-09-23, 전망 구간 2029-09-23까지."
     default_query = ("MLA vLLM FlashMLA DeepSeek R1 adoption ecosystem" if tech == "MLA" else
                      "CXL PNM KV cache Samsung CMM-D standard ecosystem") if perspective == "market" else (
-                     "KV cache reduction context capacity TTFT TPOT latency cost baseline simulation")
+                     "KV cache reduction context capacity maximum generation throughput baseline simulation")
     plan = ask(Plan, task + " 자료 검색 계획을 한 개 작성.", {"sources": sources}) if mode == "live" else {"query": default_query, "missing_evidence": "저장된 판정의 원문 근거 재검색"}
     trace = {"tech": tech, "perspective": perspective, "mode": mode, "plan": plan, "rounds": []}
     result = None
@@ -235,8 +234,8 @@ def evaluate(tech, perspective, retriever, mode, snapshot):
         # Free-form plans sometimes drift to unrelated namesakes; use a focused web probe.
         web_query = ({("MLA", "market"): "DeepSeek-V2 MLA KV cache vLLM FlashMLA AWS adoption",
                       ("PNM", "market"): "CXL PNM-KV PnG-KV Samsung CXL memory product standard",
-                      ("MLA", "domain"): "DeepSeek-V2 MLA KV cache latency TTFT TPOT cost",
-                      ("PNM", "domain"): "CXL PNM-KV PnG-KV 1M-token inference latency cost"}[(tech, perspective)]
+                      ("MLA", "domain"): "DeepSeek-V2 8 H800 maximum generation throughput 5.76 times",
+                      ("PNM", "domain"): "CXL PNM-KV PnG-KV 21.9 times throughput simulation"}[(tech, perspective)]
                      + (" " + query[:80] if attempt else ""))
         found = web_search(web_query) if mode == "live" else []
         verified, rejected = verify_web_results(found, tech, sources) if mode == "live" else ([], [])

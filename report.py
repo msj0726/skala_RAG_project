@@ -30,7 +30,7 @@ def build_sections(state):
     synth = state["synthesis"]
     sections = []
     sections.append(("SUMMARY", [
-        ("p", "시장에서는 MLA 계열의 서비스 운영과 CXL 계열의 제품 기반이 확인된다. 도메인에서는 MLA의 KV 절감만 정량화되며, 두 기술의 코딩 에이전트 응답성·비용은 근거 부족으로 판정을 유보했다. [S1] [S2] [S5] [S6]")]))
+        ("p", "시장에서는 MLA 계열의 서비스 운영과 CXL 계열의 제품 기반이 확인된다. D2 생성 처리량은 각 논문의 자체 기준 대비 MLA 5.76배, CXL-PNM 최대 21.9배로 모두 L3다. 실서빙 구성과 시뮬레이션의 조건이 달라 두 배수를 직접 비교하지 않는다. [S1] [S2] [S5] [S6]")]))
     sections.append(("1. 분석 배경", [
         ("lead", "긴 코딩 에이전트 세션은 KV cache의 저장·읽기 부담을 키운다."),
         ("p", "자기회귀 생성은 이전 토큰의 Key와 Value를 보관해 반복 계산을 줄인다. 코드·대화·도구 출력이 누적될수록 이 캐시가 커지므로, 세션당 캐시를 줄이는 MLA와 외부 메모리 수용량을 늘리는 CXL-PNM을 비교한다. [S1] [S2]"),
@@ -59,11 +59,11 @@ def build_sections(state):
             ["M1 성장성", "수요·채택 확대·공급 투자 각 0~2점; 합계 0~1 낮음, 2~3 보통, 4~5 높음, 6 매우 높음", "3년 전망의 정성 평가이며 성장률 예측이 아님"],
             ["M2 채택", "주체가 확인된 최고 단계: L4 운영, L3 제품, L2 PoC, L1 연구, L0 미확인", "선정 기술과 기술 계열을 분리"],
             ["M3 생태계", "프레임워크·제품·표준·제3자 도구의 Y 수: 3~4 L3, 1~2 L2, 원저자 구현만 L1, 모두 없으면 L0", "Y는 원문 청크로 확인; N은 부존재가 아닌 미확인"]], [88, 245, 162]),
-        ("h", "도메인: 수용성·응답성"),
+        ("h", "도메인: 수용성·동시 세션 생성 처리량"),
         grid(["기준", "판정 방식", "해석상 주의"], [
             ["D1 장기 세션", "동일 조건 KV 예산·최대 문맥의 증가 배수: 4배 이상 L3, 2~4배 L2, 1~2배 L1, 개선·근거 없음 L0", "KV 감소율의 역수는 예산 환산치이지 실측 세션 길이가 아님"],
-            ["D2 응답·비용", "비용 절감+SLA 충족 시 TTFT·TPOT 지연 증가 0% 이하 L3, 10% 이내 L2, 초과 L1", "절감 없음/SLA 미충족 L0; 필수 지표 누락은 판정 유보"]], [88, 245, 162]),
-        ("meta", "M1 세부 항목과 D2 판정 유보는 과제 기준의 미정의 부분을 보완한 운영 규칙이다. 점수는 코드가 계산하고 원문 근거를 대조한다.")]))
+            ["D2 생성 처리량", "각 논문 자체 기준 대비 동시 생성 처리량: 4배 이상 L3, 2~4배 L2, 1배 초과~2배 L1, 1배 이하 L0", "근거 없으면 판정 유보; 서로 다른 기준·실험을 직접 순위화하지 않음"]], [88, 245, 162]),
+        ("meta", "M1 세부 항목과 D2 배수 구간은 과제 범위에 맞춘 운영 규칙이다. 점수는 코드가 계산하고 원문 근거를 대조한다.")]))
     for tech in ("MLA", "PNM"):
         item = market[tech]
         body = [("lead", f"성장성 {item['scores']['M1']['label']} ({item['scores']['M1']['score']}/6), 채택은 선정 {item['scores']['M2_selected']}·계열 {item['scores']['M2_family']}, 생태계는 {item['scores']['M3']['label']}다."),
@@ -81,16 +81,16 @@ def build_sections(state):
                      [115, 42, 338]),
                 ("meta", "원저자 구현 " + ("확인" if item["author_implementation"] else "미확인") + citation(item["author_refs"]) + " · " + item["caveat"])]
         sections.append((f"4. 시장성 평가 / {NAMES[tech]}", body))
-    body = [("lead", "MLA의 KV 절감은 정량화되지만, 두 기술 모두 코딩 에이전트의 응답 지연·비용은 판정할 근거가 부족하다."),
+    body = [("lead", "D2는 두 기술 모두 L3지만, 서로 다른 기준과 실험 단계의 최대 생성 처리량이므로 현장 성능의 동등성은 아니다."),
             ("h", "D1 장기 세션 수용성"),
             grid(["기술", "판정", "같은 조건의 근거와 한계"],
                  [[NAMES[tech], domain[tech]["scores"]["D1"]["label"],
                    domain[tech]["capacity"]["basis"] + citation(domain[tech]["capacity"]["refs"])] for tech in ("MLA", "PNM")],
                  [115, 55, 325]),
-            ("h", "D2 응답성과 비용"),
-            grid(["기술", "판정", "확인되지 않은 지표"],
+            ("h", "D2 동시 세션에서의 생성 처리량 개선"),
+            grid(["기술", "판정", "자체 기준 대비 근거와 한계"],
                  [[NAMES[tech], domain[tech]["scores"]["D2"]["label"],
-                   domain[tech]["responsiveness"]["basis"] + citation(domain[tech]["responsiveness"]["refs"])] for tech in ("MLA", "PNM")],
+                   domain[tech]["throughput"]["basis"] + citation(domain[tech]["throughput"]["refs"])] for tech in ("MLA", "PNM")],
                  [115, 65, 315]),
             ("h", "AI 코딩·업무 에이전트에 적용할 때"),
             grid(["기술", "적용 해석", "제약"],
@@ -99,7 +99,7 @@ def build_sections(state):
             ("meta", "장문맥 수용과 유효한 기억은 다르다. 코드 변경 추적·검색 정확도·도구 호출 성공률은 이 KV 비교만으로 검증되지 않는다.")]
     sections.append(("5. 도메인 평가 / AI 코딩·업무 에이전트", body))
     sections.append(("6. 시사점과 한계", [
-        ("lead", "시장 채택과 코딩 에이전트의 응답성·비용은 서로 다른 질문이므로 한 점수로 합치지 않는다."),
+        ("lead", "시장 채택과 자체 기준 대비 생성 처리량은 서로 다른 질문이므로 한 점수로 합치지 않는다."),
         ("h", "관점 사이의 차이"),
         grid(["쟁점", "해석"], [[f"차이 {i}", p] for i, p in enumerate(synth["implications"], 1)], [90, 405]),
         ("h", "공개 정보와 평가 절차의 한계"),

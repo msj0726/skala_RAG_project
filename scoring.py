@@ -48,17 +48,10 @@ def capacity(reduction_pct=None, expansion=None):
     return {"label": "L3" if expansion >= 4 else "L2" if expansion >= 2 else "L1" if expansion > 1 else "L0", "factor": round(expansion, 3), "status": "확인"}
 
 
-def responsiveness(ttft_change_pct, tpot_change_pct, cost_reduction_pct, sla_met):
-    if sla_met is not None and type(sla_met) is not bool:
-        raise ValueError("SLA status must be boolean or null")
-    for value in (ttft_change_pct, tpot_change_pct):
-        if value is not None:
-            number(value, -100, math.inf)
-    if cost_reduction_pct is not None:
-        number(cost_reduction_pct, -math.inf, 100)
-    if sla_met is False or (cost_reduction_pct is not None and cost_reduction_pct <= 0):
-        return {"label": "L0", "status": "SLA 미충족 또는 비용 절감 없음"}
-    if None in (ttft_change_pct, tpot_change_pct, cost_reduction_pct, sla_met):
-        return {"label": "판정 유보", "status": "동일 조건 TTFT·TPOT·비용·SLA 근거 부족"}
-    delay = max(ttft_change_pct, tpot_change_pct)
-    return {"label": "L3" if delay <= 0 else "L2" if delay <= 10 else "L1", "status": "동일 조건 비교"}
+def throughput(improvement_factor):
+    if improvement_factor is None:
+        return {"label": "판정 유보", "factor": None, "status": "자체 기준 대비 생성 처리량 근거 부족"}
+    number(improvement_factor)
+    return {"label": "L3" if improvement_factor >= 4 else "L2" if improvement_factor >= 2 else
+            "L1" if improvement_factor > 1 else "L0", "factor": improvement_factor,
+            "status": "선정 논문 내 기준 대비 최대 생성 처리량"}
