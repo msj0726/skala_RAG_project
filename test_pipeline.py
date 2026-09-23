@@ -171,6 +171,25 @@ class RubricTests(unittest.TestCase):
         writer.assert_called_once()
         self.assertIn("synthesis", writer.call_args.args[0])
 
+    def test_report_keeps_chapters_and_leads_with_simple_summary(self):
+        from report import build_sections
+        snapshot = json.loads((ROOT / "data/reviewed_evidence.json").read_text())
+        sources = read_sources()
+        chunks = [{"source_id": s["id"]} for s in sources]
+        state = {"market": [validate(x, "market", sources, chunks) for x in snapshot["market"]],
+                 "domain": [validate(x, "domain", sources, chunks) for x in snapshot["domain"]],
+                 "synthesis": snapshot["synthesis"], "sources": sources, "as_of": "2026-09-23",
+                 "mode": "replay", "corpus_pages": 169, "embedding_model": "test"}
+        sections = build_sections(state)
+        self.assertEqual([heading for heading, _ in sections],
+                         ["SUMMARY", "1. 분석 배경", "2. 기술 선정과 개요", "3. 평가 방법",
+                          "4. 시장성 평가 / DeepSeek-V2 MLA", "4. 시장성 평가 / CXL-PNM (PNM-KV / PnG-KV)",
+                          "5. 도메인 평가 / AI 코딩·업무 에이전트", "6. 시사점과 한계", "REFERENCE"])
+        self.assertEqual([kind for kind, _ in sections[0][1]], ["p"])
+        for _, blocks in sections[1:-1]:
+            self.assertIn("lead", [kind for kind, _ in blocks])
+            self.assertIn("table", [kind for kind, _ in blocks])
+
 
 if __name__ == "__main__":
     unittest.main()

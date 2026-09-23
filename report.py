@@ -20,74 +20,93 @@ def citation(ids):
     return " " + " ".join(f"[{i}]" for i in dict.fromkeys(ids)) if ids else ""
 
 
+def grid(headers, rows, widths):
+    return ("table", {"rows": [headers, *rows], "widths": widths})
+
+
 def build_sections(state):
     market = {x["tech"]: x for x in state["market"]}
     domain = {x["tech"]: x for x in state["domain"]}
     synth = state["synthesis"]
     sections = []
-    first = [("p", synth["summary"] + citation(synth["refs"])),
-             ("meta", f"평가 기준일: {state['as_of']} | 대상: AI 코딩·업무 에이전트 | 시장·도메인 2개 관점"),
-             ("meta", "실행: " + ("검토 기록 재현 + 실제 원문 벡터 검색 + 코드 채점 (API 미사용)" if state["mode"] == "replay" else "OpenAI 실시간 조사 + WebSearch + 원문 벡터 검색; 최종 판정은 검토 원장과 대조")),
-             ("h", "평가 결과를 읽는 법"),
-             ("table", [["기준", "MLA", "CXL-PNM"],
-                        ["M1 성장성", f"{market['MLA']['scores']['M1']['label']} ({market['MLA']['scores']['M1']['score']}/6)", f"{market['PNM']['scores']['M1']['label']} ({market['PNM']['scores']['M1']['score']}/6)"],
-                        ["M2 채택 (선정 / 계열)", f"{market['MLA']['scores']['M2_selected']} / {market['MLA']['scores']['M2_family']}", f"{market['PNM']['scores']['M2_selected']} / {market['PNM']['scores']['M2_family']}"],
-                        ["M3 생태계", market['MLA']['scores']['M3']['label'], market['PNM']['scores']['M3']['label']],
-                        ["D1 장기 세션 수용성", domain['MLA']['scores']['D1']['label'], domain['PNM']['scores']['D1']['label']],
-                        ["D2 응답성·비용", domain['MLA']['scores']['D2']['label'], domain['PNM']['scores']['D2']['label']]]),
-             ("p", "M2의 선정/계열 범위는 분리 표기한다. D1의 L0는 개선 부재 또는 비교 근거 부족을 뜻하므로 사유를 함께 읽어야 한다. 전체 합산 점수와 기술 순위는 만들지 않는다."),
-             ("h", "1. 분석 배경"),
-             ("p", "자기회귀 생성은 이전 토큰의 Key와 Value를 보관해 반복 계산을 줄인다. 코드·대화·도구 출력이 누적되면 KV 메모리와 읽기 부담이 커진다. 두 접근은 이 병목을 각각 표현 압축과 외부 메모리/근접 연산으로 다룬다. [S1] [S2]")]
-    sections.append(("SUMMARY", first))
+    sections.append(("SUMMARY", [
+        ("p", "시장에서는 MLA 계열의 서비스 운영과 CXL 계열의 제품 기반이 확인된다. 도메인에서는 MLA의 KV 절감만 정량화되며, 두 기술의 코딩 에이전트 응답성·비용은 근거 부족으로 판정을 유보했다. [S1] [S2] [S5] [S6]")]))
+    sections.append(("1. 분석 배경", [
+        ("lead", "긴 코딩 에이전트 세션은 KV cache의 저장·읽기 부담을 키운다."),
+        ("p", "자기회귀 생성은 이전 토큰의 Key와 Value를 보관해 반복 계산을 줄인다. 코드·대화·도구 출력이 누적될수록 이 캐시가 커지므로, 세션당 캐시를 줄이는 MLA와 외부 메모리 수용량을 늘리는 CXL-PNM을 비교한다. [S1] [S2]"),
+        grid(["비교 관점", "DeepSeek-V2 MLA", "CXL-PNM"], [
+            ["병목 대응", "KV 표현을 저차원으로 압축", "KV 수용량 확장·근접 연산"],
+            ["변경 대상", "모델 구조·서빙 커널", "메모리 계층·서빙 경로"]], [105, 195, 195]),
+        ("meta", f"평가 기준일 {state['as_of']} · 대상 AI 코딩·업무 에이전트 · 시장성/도메인 2개 관점")]))
     sections.append(("2. 기술 선정과 개요", [
+        ("lead", "서로 다른 변경 지점을 대표하는 두 기술을 사람이 고정 선정했다."),
         ("h", "Human 기반 고정 선정"),
-        ("p", "기술 선택은 사람이 완료했다. 실행마다 같은 조합을 비교해 검색 전략과 문서 풀을 고정한다. 선정 기준은 접근의 대표성, 변경 전제의 대조성, 시장·도메인 두 관점의 자료 확보 가능성이다. 선정 능력 자체는 평가하지 않는다."),
-        ("table", [["비교축", "DeepSeek-V2 MLA", "CXL-PNM"],
-                   ["변경 지점", "모델의 KV 표현과 어텐션 구조", "서버 메모리 계층과 근접 연산"],
-                   ["요구 전제", "MLA 모델·서빙 커널", "CXL-PNM 장치·드라이버·런타임"],
-                   ["분석 초점", "세션당 캐시 예산", "외부 캐시 수용과 선택 연산"]]),
+        ("p", "선정 기준은 접근의 대표성, 요구 전제의 대조성, 두 관점의 자료 확보 가능성이다. 기술 조합을 고정해 실행 간 비교 가능성을 유지한다."),
+        grid(["비교축", "DeepSeek-V2 MLA", "CXL-PNM"], [
+            ["핵심 접근", "KV를 저차원 잠재공간으로 압축", "CXL 메모리에 수용하고 근접 연산"],
+            ["요구 전제", "MLA 모델·대응 서빙 커널", "CXL-PNM 장치·드라이버·런타임"],
+            ["평가 초점", "세션당 KV 예산", "외부 KV 수용·선택 연산"]], [105, 195, 195]),
         ("h", "2.1 SW: DeepSeek-V2 MLA"),
-        ("p", "저차원 잠재 벡터로 KV를 표현하는 아키텍처 개선 접근이다. 본 분석은 2024년 6월 개정본을 사용한다. 기존 GPU 인프라에서 실행할 수 있지만 모델 구조와 대응 커널이 전제된다. 사후 양자화처럼 임의 모델에 그대로 적용하는 방식이 아니다. [S1] [S3]"),
+        ("p", "모델의 어텐션 구조를 바꾸는 방식이다. 기존 GPU에서 실행할 수 있지만 MLA 모델과 대응 커널이 필요해 임의 모델에 설정만으로 적용할 수 없다. [S1] [S3]"),
         ("h", "2.2 HW: 1M-Token LLM Inference의 CXL-PNM"),
-        ("p", "CXL 메모리의 PNM 가속기로 KV 관련 선택·연산을 옮긴다. PNM-KV와 GPU 병행 방식 PnG-KV를 다루는 2025년 10월 31일 원문을 선정했다. PIM/CXL은 과제상의 포괄 명칭이고, 원문의 구체 방식은 Processing-Near-Memory다. [S2]"),
+        ("p", "CXL 메모리의 PNM 가속기로 KV 관련 선택·연산을 옮긴다. 선정 논문은 PNM-KV와 GPU 병행 방식 PnG-KV를 평가한다. PIM/CXL은 포괄 명칭이며 논문의 구체 방식은 PNM이다. [S2]"),
         ("h", "평가 단위"),
-        ("p", "도메인의 정량치는 선정 논문 단위로 평가한다. 시장은 MLA 계열과 PIM/PNM·CXL 메모리 계열까지 확장하되 원 기술과 구분한다. 일반 CXL 제품과 규격은 해당 PNM 구현의 상용 운영 증거가 아니다. [S2] [S6] [S7]")]))
+        ("p", "도메인 수치는 선정 논문 단위, 시장은 기술 계열까지 조사한다. CXL 제품·규격은 선정 PNM 구현의 상용 운영 증거로 간주하지 않는다. [S2] [S6] [S7]")]))
     sections.append(("3. 평가 방법", [
-        ("h", "M1 성장성: 2026-09-23 이후 3년"),
-        ("p", "세부 항목은 수요 동인·채택 확대·공급/생태계 투자다. 각 0점=긍정 근거 미확인, 1점=단일 사례 또는 간접 동인, 2점=독립된 복수 사례 또는 시간상 확장 근거. 합계 0~1 낮음, 2~3 보통, 4~5 높음, 6 매우 높음으로 코드가 계산한다. 항목 구체화는 구현 시 보완한 운영 규칙이며 성장률 예측 모델은 아니다."),
-        ("h", "M2 채택 / M3 생태계"),
-        ("p", "M2는 채택 주체와 근거가 있는 사례의 최고 단계를 계산한다: L4 상용 운영, L3 제품화, L2 시범·PoC, L1 연구, L0 미확인. 선정 기술과 계열의 최고 단계를 각각 산출한다."),
-        ("p", "M3는 프레임워크·벤더 제품·표준화·제3자 연구/도구의 네 항목을 원문 청크로 교차 확인한다. Y 3~4개 L3, 1~2개 L2, 0개이지만 원저자 구현이 있으면 L1, 둘 다 없으면 L0. 같은 구현을 중복 집계하지 않는다. N은 수집 자료 내 미확인이다."),
-        ("h", "D1 장기 세션 수용성"),
-        ("p", "KV 감소율 r은 1/(1-r)의 동일 예산 환산치로 변환하거나, 같은 조건의 최대 문맥·세션 증가 배수를 사용한다. 4배 이상 L3, 2배 이상~4배 미만 L2, 1배 초과~2배 미만 L1, 1배 이하·근거 없음 L0. 2배·4배 경계는 상위 구간으로 통일했다. 예산 환산치와 실제 세션 길이는 구별한다."),
-        ("h", "D2 응답성과 비용 효율"),
-        ("p", "동일 조건 TTFT·TPOT 중 큰 지연 증가율로 판정한다. 비용 절감이 있고 SLA를 만족하면서 지연 증가 없음 L3, 10% 이내 L2, 10% 초과 L1. 비용 절감 없음 또는 SLA 미충족은 L0. 필요한 지표가 없으면 판정 유보로 남긴다. SLA 수치는 도입 환경에 따라 별도 정의해야 한다."),
-        ("p", "모든 점수는 구조화된 근거를 검증한 뒤 코드로 계산한다. LLM은 근거 해석과 설명을 담당한다. 자료가 부족하면 재검색을 최대 1회 수행하며 미확인을 숫자로 보충하지 않는다.")]))
+        ("lead", "시장성과 AI 코딩·업무 에이전트 적용성만 평가하며, 근거 부족은 숫자로 메우지 않는다."),
+        ("h", "시장성: 성장·채택·생태계"),
+        grid(["기준", "판정 방식", "해석상 주의"], [
+            ["M1 성장성", "수요·채택 확대·공급 투자 각 0~2점; 합계 0~1 낮음, 2~3 보통, 4~5 높음, 6 매우 높음", "3년 전망의 정성 평가이며 성장률 예측이 아님"],
+            ["M2 채택", "주체가 확인된 최고 단계: L4 운영, L3 제품, L2 PoC, L1 연구, L0 미확인", "선정 기술과 기술 계열을 분리"],
+            ["M3 생태계", "프레임워크·제품·표준·제3자 도구의 Y 수: 3~4 L3, 1~2 L2, 원저자 구현만 L1, 모두 없으면 L0", "Y는 원문 청크로 확인; N은 부존재가 아닌 미확인"]], [88, 245, 162]),
+        ("h", "도메인: 수용성·응답성"),
+        grid(["기준", "판정 방식", "해석상 주의"], [
+            ["D1 장기 세션", "동일 조건 KV 예산·최대 문맥의 증가 배수: 4배 이상 L3, 2~4배 L2, 1~2배 L1, 개선·근거 없음 L0", "KV 감소율의 역수는 예산 환산치이지 실측 세션 길이가 아님"],
+            ["D2 응답·비용", "비용 절감+SLA 충족 시 TTFT·TPOT 지연 증가 0% 이하 L3, 10% 이내 L2, 초과 L1", "절감 없음/SLA 미충족 L0; 필수 지표 누락은 판정 유보"]], [88, 245, 162]),
+        ("meta", "M1 세부 항목과 D2 판정 유보는 과제 기준의 미정의 부분을 보완한 운영 규칙이다. 점수는 코드가 계산하고 원문 근거를 대조한다.")]))
     for tech in ("MLA", "PNM"):
         item = market[tech]
-        body = [("h", f"M1 성장성: {item['scores']['M1']['label']} ({item['scores']['M1']['score']}/6)")]
-        body += [("p", f"{x['name']} {x['points']}/2: {x['reason']}" + citation(x["refs"])) for x in item["growth"]]
-        body += [("h", f"M2 채택: 선정 {item['scores']['M2_selected']} / 계열 {item['scores']['M2_family']}")]
-        body += [("p", f"{x['actor']} · {'선정' if x['scope']=='selected' else '계열'} · L{x['level']}: {x['reason']}" + citation(x["refs"])) for x in item["cases"]]
-        body += [("h", f"M3 생태계: {item['scores']['M3']['label']} ({item['scores']['M3']['count']}/4)")]
-        body += [("p", f"{x['name']} {'Y' if x['present'] else 'N'}: {x['reason']}" + citation(x["refs"])) for x in item["ecosystem"]]
-        body += [("meta", "원저자 구현: " + ("확인" if item["author_implementation"] else "미확인") + citation(item["author_refs"])), ("meta", item["caveat"])]
+        body = [("lead", f"성장성 {item['scores']['M1']['label']} ({item['scores']['M1']['score']}/6), 채택은 선정 {item['scores']['M2_selected']}·계열 {item['scores']['M2_family']}, 생태계는 {item['scores']['M3']['label']}다."),
+                ("h", "M1 성장성"),
+                grid(["항목", "점수", "판정 근거"],
+                     [[x["name"], f"{x['points']}/2", x["reason"] + citation(x["refs"])] for x in item["growth"]],
+                     [105, 52, 338]),
+                ("h", "M2 채택"),
+                grid(["범위·단계", "채택 주체", "판정 근거"],
+                     [[f"{'선정' if x['scope']=='selected' else '계열'} L{x['level']}", x["actor"], x["reason"] + citation(x["refs"])] for x in item["cases"]],
+                     [82, 120, 293]),
+                ("h", "M3 생태계"),
+                grid(["항목", "확인", "판정 근거"],
+                     [[x["name"], "Y" if x["present"] else "N", x["reason"] + citation(x["refs"])] for x in item["ecosystem"]],
+                     [115, 42, 338]),
+                ("meta", "원저자 구현 " + ("확인" if item["author_implementation"] else "미확인") + citation(item["author_refs"]) + " · " + item["caveat"])]
         sections.append((f"4. 시장성 평가 / {NAMES[tech]}", body))
-    body = []
-    for tech in ("MLA", "PNM"):
-        item = domain[tech]
-        body.append(("h", NAMES[tech]))
-        factor = item["scores"]["D1"]["factor"]
-        body.append(("p", f"D1: {item['scores']['D1']['label']}" + (f" / {factor:.3f}배 예산·용량 비교" if factor else " / 비교 근거 없음") + ". " + item["capacity"]["basis"] + citation(item["capacity"]["refs"])))
-        body.append(("p", f"D2: {item['scores']['D2']['label']}. " + item["responsiveness"]["basis"] + citation(item["responsiveness"]["refs"])))
-        body.append(("p", "도메인 해석: " + item["application"]))
-        body.append(("meta", "적용 한계: " + item["limitations"]))
-    body.append(("p", "장문맥의 수용과 유효한 기억은 같지 않다. 코드 변경 추적, 검색 정확도, 도구 호출 성공률과 같은 업무 품질은 이 KV 비교만으로 검증되지 않는다."))
+    body = [("lead", "MLA의 KV 절감은 정량화되지만, 두 기술 모두 코딩 에이전트의 응답 지연·비용은 판정할 근거가 부족하다."),
+            ("h", "D1 장기 세션 수용성"),
+            grid(["기술", "판정", "같은 조건의 근거와 한계"],
+                 [[NAMES[tech], domain[tech]["scores"]["D1"]["label"],
+                   domain[tech]["capacity"]["basis"] + citation(domain[tech]["capacity"]["refs"])] for tech in ("MLA", "PNM")],
+                 [115, 55, 325]),
+            ("h", "D2 응답성과 비용"),
+            grid(["기술", "판정", "확인되지 않은 지표"],
+                 [[NAMES[tech], domain[tech]["scores"]["D2"]["label"],
+                   domain[tech]["responsiveness"]["basis"] + citation(domain[tech]["responsiveness"]["refs"])] for tech in ("MLA", "PNM")],
+                 [115, 65, 315]),
+            ("h", "AI 코딩·업무 에이전트에 적용할 때"),
+            grid(["기술", "적용 해석", "제약"],
+                 [[NAMES[tech], domain[tech]["application"], domain[tech]["limitations"]] for tech in ("MLA", "PNM")],
+                 [105, 195, 195]),
+            ("meta", "장문맥 수용과 유효한 기억은 다르다. 코드 변경 추적·검색 정확도·도구 호출 성공률은 이 KV 비교만으로 검증되지 않는다.")]
     sections.append(("5. 도메인 평가 / AI 코딩·업무 에이전트", body))
-    sections.append(("6. 시사점과 한계", [("h", "관점 사이의 차이")] + [("p", p) for p in synth["implications"]] +
-                     [("h", "공개 정보와 평가 절차의 한계")] + [("p", p) for p in synth["limitations"]] +
-                     [("h", "실행 추적"), ("meta", f"원문 {len(state['sources'])}개, PDF 실페이지와 웹 환산페이지 합계 {state['corpus_pages']}페이지. 웹은 3,000자당 1페이지로 별도 환산했다. 임베딩: {state['embedding_model']}. 검색 청크 ID와 원문 해시, 검색어, 판정 입력은 evaluation.json과 실행 trace에 기록했다."),
-                      ("meta", "시장 평가는 WebSearch와 M3 원문 교차 확인, 도메인 평가는 VectorRetriever와 WebSearch를 사용한다. 실시간 모드의 모델 제안은 evaluation.json에 남긴다. 검토 원장과 불일치한 수치·해석은 보고서에 반영하지 않고, 종합 의견도 검토된 기록으로 구성한다. 재현 모드는 WebSearch·OpenAI 호출을 생략한다.")]))
+    sections.append(("6. 시사점과 한계", [
+        ("lead", "시장 채택과 코딩 에이전트의 응답성·비용은 서로 다른 질문이므로 한 점수로 합치지 않는다."),
+        ("h", "관점 사이의 차이"),
+        grid(["쟁점", "해석"], [[f"차이 {i}", p] for i, p in enumerate(synth["implications"], 1)], [90, 405]),
+        ("h", "공개 정보와 평가 절차의 한계"),
+        grid(["구분", "한계"], [[f"한계 {i}", p] for i, p in enumerate(synth["limitations"], 1)], [90, 405]),
+        ("h", "실행 추적"),
+        ("meta", f"원문 {len(state['sources'])}개, PDF 실페이지와 웹 환산페이지 합계 {state['corpus_pages']}페이지(웹 3,000자당 1페이지). 임베딩 {state['embedding_model']}. 청크 ID·원문 해시·검색어·판정 입력은 evaluation.json에 기록했다."),
+        ("meta", "실시간 검색 결과는 원문 검증 후 검토 원장과 대조한다. 일치하지 않는 모델 제안은 보고서에 반영하지 않는다. 재현 모드는 웹검색과 OpenAI 호출을 생략한다.")]))
     used = set(refs_in({"market": state["market"], "domain": state["domain"], "synthesis": synth})) | {"S1", "S2", "S3", "S6", "S7"}
     bibliography = []
     for source in state["sources"]:
@@ -109,30 +128,36 @@ def render(state, output):
         raise RuntimeError("REPORT_FONT에 한글을 포함하는 TTF 경로를 지정하세요.")
     pdfmetrics.registerFont(TTFont("Korean", font))
     styles = {"p": ParagraphStyle("body", fontName="Korean", fontSize=10, leading=16, spaceAfter=9, wordWrap="CJK", textColor=colors.HexColor("#243044")),
+              "lead": ParagraphStyle("lead", fontName="Korean", fontSize=11, leading=17, spaceAfter=12, wordWrap="CJK", textColor=colors.HexColor("#126d80")),
               "h": ParagraphStyle("sub", fontName="Korean", fontSize=12, leading=18, spaceBefore=11, spaceAfter=7, textColor=colors.HexColor("#126d80")),
               "meta": ParagraphStyle("meta", fontName="Korean", fontSize=8.7, leading=14, spaceAfter=7, wordWrap="CJK", textColor=colors.HexColor("#526074")),
+              "cell": ParagraphStyle("cell", fontName="Korean", fontSize=8.5, leading=12.5, wordWrap="CJK", textColor=colors.HexColor("#243044")),
               "ref": ParagraphStyle("ref", fontName="Korean", fontSize=8.5, leading=14, spaceAfter=11, wordWrap="CJK"),
               "title": ParagraphStyle("title", fontName="Korean", fontSize=21, leading=29, spaceAfter=20, textColor=colors.HexColor("#102c43"))}
     story, markdown = [], []
     for i, (heading, blocks) in enumerate(build_sections(state)):
-        if i:
+        if i and i != 1:
             story.append(PageBreak())
         story.append(Paragraph(escape(heading), styles["title"]))
         markdown.append("# " + heading + "\n")
         for kind, content in blocks:
             if kind == "table":
-                rows = [[Paragraph(escape(str(c)), styles["meta"]) for c in row] for row in content]
-                table = Table(rows, colWidths=[165, 165, 165], hAlign="LEFT", repeatRows=1)
+                rows = content["rows"]
+                cells = [[Paragraph(escape(str(c)), styles["cell"]) for c in row] for row in rows]
+                table = Table(cells, colWidths=content["widths"], hAlign="LEFT", repeatRows=1)
                 table.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e2f1f4")),
+                                           ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f7fafb")]),
                                            ("VALIGN", (0, 0), (-1, -1), "TOP"),
                                            ("LINEBELOW", (0, 0), (-1, -1), .4, colors.HexColor("#dce2e8")),
-                                           ("LEFTPADDING", (0, 0), (-1, -1), 8),
-                                           ("TOPPADDING", (0, 0), (-1, -1), 8)]))
+                                           ("LEFTPADDING", (0, 0), (-1, -1), 7),
+                                           ("RIGHTPADDING", (0, 0), (-1, -1), 7),
+                                           ("TOPPADDING", (0, 0), (-1, -1), 7),
+                                           ("BOTTOMPADDING", (0, 0), (-1, -1), 7)]))
                 story.extend([table, Spacer(1, 12)])
-                markdown.append("\n".join("| " + " | ".join(map(str, row)) + " |" for row in [content[0], ["---"] * len(content[0])] + content[1:]) + "\n")
+                markdown.append("\n".join("| " + " | ".join(map(str, row)) + " |" for row in [rows[0], ["---"] * len(rows[0])] + rows[1:]) + "\n")
             else:
                 story.append(Paragraph(escape(content), styles[kind]))
-                markdown.append(("## " if kind == "h" else "") + content + "\n")
+                markdown.append(("## " if kind == "h" else "**" if kind == "lead" else "") + content + ("**" if kind == "lead" else "") + "\n")
     def footer(canvas, doc):
         canvas.setFont("Korean", 8)
         canvas.setFillColor(colors.HexColor("#68788b"))
