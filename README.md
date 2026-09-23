@@ -101,4 +101,3 @@ python main.py --mode live
 - MLA의 5.76배 처리량은 MLA 단독 효과가 아닌 전체 서빙 구성의 결과입니다. CXL-PNM의 최대 21.9배는 사이클 수준 시뮬레이션 결과입니다.
 - 본 구현은 이해관계자 평가, 독립적인 Judge LLM, Hit Rate@K·MRR 측정을 아직 제공하지 않습니다.
 - 작업을 이어받을 때는 [HANDOFF.md](HANDOFF.md)의 근거 범위와 실행상 주의사항을 확인하세요.
-
