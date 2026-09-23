@@ -2,6 +2,8 @@
 
 Human이 선정한 **DeepSeek-V2 MLA**와 **CXL-PNM (PNM-KV/PnG-KV)**를 시장성(M1~M3), AI 코딩·업무 에이전트 도메인(D1~D2)에서 평가하고 한국어 PDF·Markdown·근거 JSON을 생성합니다. 기술 성숙도와 이해관계자 평가는 포함하지 않습니다.
 
+다른 컴퓨터나 AI에게 작업을 넘길 때는 [HANDOFF.md](HANDOFF.md)를 먼저 읽으세요.
+
 ## 실행
 
 Python 3.12 권장. 선정 논문 두 편은 `data/papers/`의 첨부 PDF를 SHA-256으로 확인해 사용합니다. 최초 실행에서 나머지 공식 문서와 무료 임베딩 모델을 다운로드하므로 인터넷이 필요합니다.
