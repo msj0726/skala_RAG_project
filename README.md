@@ -1,94 +1,104 @@
-# KV cache 다관점 평가 에이전트
+# KV Cache 다관점 평가 Agentic RAG
 
-Human이 선정한 **DeepSeek-V2 MLA**와 **CXL-PNM (PNM-KV/PnG-KV)**를 시장성(M1~M3), AI 코딩·업무 에이전트 도메인(D1~D2)에서 평가하고 한국어 PDF·Markdown·근거 JSON을 생성합니다. 기술 성숙도와 이해관계자 평가는 포함하지 않습니다.
+본 프로젝트는 KV cache 최적화 기술을 소프트웨어와 하드웨어 진영에서 하나씩 선정하고, 여러 관점의 근거를 수집·대조하여 평가하는 Agentic RAG입니다. 현재 구현은 **시장성**과 **AI 코딩·업무 에이전트 도메인 적합성**을 평가합니다. 이해관계자 관점은 향후 확장 대상이며 현재 평가·보고서에는 포함되지 않습니다.
 
-다른 컴퓨터나 AI에게 작업을 넘길 때는 [HANDOFF.md](HANDOFF.md)를 먼저 읽으세요.
+## Overview
 
-## 실행
+- **Objective:** DeepSeek-V2 MLA(SW)와 CXL-PNM(HW)을 시장·도메인 관점에서 비교 평가
+- **Method:** LangGraph 기반 분산형 Multi-Agent + Agentic RAG
+- **Tools:** 로컬 벡터 검색, OpenAI WebSearch, PDF 원문 추출 및 출처 검증
+- **Output:** 한국어 PDF·Markdown 보고서와 평가 근거 JSON
 
-Python 3.12 권장. 선정 논문 두 편은 `data/papers/`의 첨부 PDF를 SHA-256으로 확인해 사용합니다. 최초 실행에서 나머지 공식 문서와 무료 임베딩 모델을 다운로드하므로 인터넷이 필요합니다.
+## Selected Technologies
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.lock
-cp .env.example .env
-# .env에 OPENAI_API_KEY를 직접 입력
-python main.py --mode live
-```
+- **SW — DeepSeek-V2 Multi-head Latent Attention (MLA):** KV cache 저장량을 줄이는 소프트웨어 기반 접근이며, 공개 논문과 구현·생태계 자료를 함께 검토할 수 있어 선정했습니다.
+- **HW — CXL-PNM (PNM-KV/PnG-KV):** CXL 메모리와 near-memory processing을 활용한 하드웨어 기반 접근으로, MLA와 다른 시스템 설계 관점에서 평가할 수 있어 선정했습니다.
 
-기본 LLM은 `gpt-4.1-mini-2025-04-14`, `OPENAI_MODEL`로 변경합니다. OpenAI Responses API의 Structured Outputs를 사용합니다. 계정별 모델 사용 가능 여부·비용은 별도이며 키·응답은 Git에 저장하지 않습니다. live 모드는 공개 원문의 검색 청크와 문서 텍스트를 OpenAI에 전달합니다.
+두 기술의 논문 수치는 실험 환경과 기준이 달라 직접적인 우열 비교에 사용하지 않습니다. 기술 자체의 채택 사례와 관련 기술 계열의 채택 사례도 구분합니다.
 
-키 없이 실행 흐름을 확인하려면:
+## Features
 
-```bash
-python main.py --mode replay
-python -m unittest -v
-```
+- `data/papers/`의 논문 PDF와 공식 웹 문서에서 텍스트를 추출하고, 페이지·출처·SHA-256 해시를 기록합니다.
+- 시장 평가 에이전트와 도메인 평가 에이전트를 병렬 실행한 뒤 결과를 종합합니다.
+- 검색 계획 → 원문 검색 → 근거 평가 → 근거가 부족할 때 최대 1회 재검색의 흐름을 사용합니다.
+- **확증 편향 방지:** 검색 URL이나 스니펫만으로 주장하지 않고 원문 접근성·주제 적합성·인용 출처를 확인합니다. 선정 기술과 기술 계열의 근거, 실측과 시뮬레이션 결과를 분리하며, LLM 제안은 사람이 검토한 `data/reviewed_evidence.json`과 대조합니다. 새 근거가 자동으로 최종 점수를 바꾸지는 않습니다.
+- `replay` 모드로 API 키 없이 검토된 근거를 재현할 수 있습니다. 이 모드는 실시간 웹 검색이나 LLM 평가를 수행하지 않습니다.
 
-**replay는 LLM 평가나 실시간 웹 검색을 수행하지 않습니다.** `data/reviewed_evidence.json`의 검토 기록을 읽되 실제 오픈소스 임베딩·원문 검색·출처 검증·점수 계산·LangGraph·PDF 생성을 실행합니다. 재현 PDF에 실행 모드를 명시합니다. live 실패를 replay로 자동 대체하지 않습니다. live는 실제 모델 제안을 `evaluation.json`에 남기지만, 최종 판정과 종합 문장은 검토 원장을 기준으로 대조합니다. 원장과 다른 제안은 보고서에 자동 반영하지 않습니다.
+## Tech Stack
 
-한글 TTF가 자동 탐지되지 않으면 `.env`에 `REPORT_FONT=/절대경로/한글폰트.ttf`를 지정합니다. macOS에서는 Arial Unicode 또는 AppleGothic을 사용합니다. 폰트 파일은 저장소에 포함하지 않습니다.
+| 구성 | 현재 구현 |
+| --- | --- |
+| Framework | LangGraph |
+| LLM / Generator | OpenAI Responses API, 기본값 `gpt-4.1-mini-2025-04-14` (`OPENAI_MODEL`로 변경 가능) |
+| LLM / Judge | 별도 Judge 모델 없음. 최종 판정은 검토된 근거 원장과 코드의 평가 규칙을 사용 |
+| Retrieval | `intfloat/multilingual-e5-small` 임베딩 + NumPy cosine 검색. 별도 VectorDB 없음 |
+| Retrieval metrics | Hit Rate@K, MRR은 아직 측정·공개되지 않음 |
+| PDF / Report | 논문 PDF 추출, 한국어 PDF·Markdown 보고서 생성 |
 
-## 산출물
+검색은 `query:` / `passage:` 접두사와 정규화된 임베딩을 사용합니다. 데이터 규모가 작아 현재는 별도 벡터 DB 대신 로컬 NumPy 검색을 사용합니다.
 
-- `output/live/report.pdf`: 실제 API 실행 평가 보고서(10페이지 초과 시 생성 실패)
-- `output/live/report.docx`: 같은 내용의 편집 가능한 Word 보고서 (`python word_report.py output/live`)
-- `output/replay/report.pdf`: 검토 기록 기반 재현 보고서
-- `report.md`: 같은 내용의 편집 가능한 본문
-- `evaluation.json`: 점수 입력·채점 결과·출처·원문 청크·검색 결과·실행 모드
-- `web_evidence.json`: 검색 자료 중 발행처·실제 본문·주제 적합성·해시를 확인한 목록
-- `graph.mmd`: 실제 컴파일한 LangGraph
+## Agents
 
-제출 시 실제 실행 모드를 확인하고 PDF 이름을 과제 양식으로 변경하세요. GitHub public 게시·thread 제출은 자동으로 하지 않습니다. 원문은 `data/raw/`, 모델은 `.cache/`, 벡터는 `data/index/`에 보관하며 Git에서 제외합니다. 원문 청크가 포함된 `evaluation.json`도 로컬 검토용으로 Git에서 제외합니다. 검토 요약과 출처 목록은 `data/`에 포함됩니다. 설치 환경의 정확한 버전은 `requirements.lock`, 허용 버전 범위는 `requirements.txt`에 기록했습니다.
+- **Market Agent:** 수요 동인, 채택 사례, 생태계 근거를 검색하고 시장성 M1~M3을 평가합니다.
+- **Domain Agent:** 논문의 비교 조건, KV 수용성, 생성 처리량 근거를 확인하고 도메인 D1~D2를 평가합니다.
+- **Synthesis Agent:** 검토된 원장을 기준으로 관점별 결과와 한계를 종합합니다.
+- **Report Writer:** 검증된 상태를 PDF·Markdown·JSON 산출물로 정리합니다. 별도 LLM을 호출하지 않습니다.
 
-## 에이전트와 도구
+## Architecture
 
 ```mermaid
 flowchart TD
-  H[Human 기술 선정 고정] --> M[시장 평가 에이전트]
-  H --> D[도메인 평가 에이전트]
-  M --> S[평가 종합 에이전트]
-  D --> S
-  S --> R[보고서 작성 노드]
-  R --> O[PDF / Markdown / JSON]
+    H[사람이 SW·HW 기술 선정] --> M[Market Agent]
+    H --> D[Domain Agent]
+    M --> S[Synthesis Agent]
+    D --> S
+    S --> R[Report Writer]
+    R --> O[PDF · Markdown · JSON]
 ```
 
-| 구성 | 역할 / 도구 |
-| --- | --- |
-| 시장 평가 | OpenAI가 검색어 계획 → OpenAI WebSearch → M1·M2 원문 문서 확인, M3만 VectorRetriever 청크로 교차 확인 → 근거 부족 시 1회 재검색 |
-| 도메인 평가 | OpenAI가 검색어 계획 → VectorRetriever + OpenAI WebSearch → 선정 논문의 비교 조건·KV·생성 처리량 확인 → 근거 부족 시 1회 재검색 |
-| 종합 평가 | 검토된 원장을 기준으로 두 관점의 차이와 한계를 설명. 새 수치·출처·합산 순위를 추가하지 않음 |
-| 보고서 작성 | 검증된 State를 정해진 목차로 렌더링. 추가 LLM 없이 코드로 PDF 생성 |
+Market Agent와 Domain Agent는 LangGraph에서 병렬 실행되고, 두 결과가 합류한 뒤 종합·보고서 작성이 진행됩니다. 실행 시 생성되는 `output/<mode>/graph.mmd`에서 실제 그래프를 확인할 수 있습니다.
 
-시장과 도메인은 LangGraph fan-out으로 병렬 실행하고 `market`, `domain`, 각 trace를 분리 저장합니다. 양쪽 완료 후 join하여 종합합니다. 검색 재시도는 각 기술·관점당 최대 1회입니다. OpenAI WebSearch는 추가 API 도구 비용이 발생할 수 있습니다. 검색 URL만으로 근거를 만들지 않습니다. HTTPS·허용 발행처·실제 원문 수집·주제 키워드를 통과한 페이지는 해시와 발췌문을 `web_evidence.json` 및 trace에 기록하고, live 평가 제안의 M1/M2 원문 자료로 제공합니다. 이 검증은 출처 접근성과 주제 적합성의 확인이지 개별 주장·수치의 독립적인 사실 검증은 아닙니다. 최종 보고서 점수는 기존 수작업 검토 원장으로 고정되며, 신규 자료로 점수를 바꾸려면 `data/reviewed_evidence.json`을 검토·수정해야 합니다.
+## Directory Structure
 
-## 임베딩과 문서 풀
+```text
+├── data/                  # 논문 PDF, 출처 목록, 검토된 근거
+├── output/                # live/replay 평가 결과와 보고서
+├── agents.py              # 검색 계획·평가·근거 검증 로직
+├── retrieval.py           # PDF/웹 수집과 로컬 벡터 검색
+├── scoring.py             # 평가 규칙과 점수 계산
+├── report.py              # PDF·Markdown 보고서 생성
+├── word_report.py         # Word 보고서 생성(선택)
+├── main.py                # LangGraph 구성 및 실행 진입점
+├── requirements.txt       # 의존성 범위
+├── requirements.lock      # 고정 의존성 버전
+└── README.md
+```
 
-오픈소스 `intfloat/multilingual-e5-small`을 로컬 CPU에서 사용합니다. 한국어 질의와 영어 원문을 함께 다룰 수 있고, 큰 모델보다 다운로드·CPU 부담을 낮추기 위해 선정했습니다. 후보는 영어 중심 `all-MiniLM-L6-v2`, 더 큰 다국어 `multilingual-e5-base`입니다. 이 선택은 비용·언어 지원 기준이며 검색 품질 우월성을 실험으로 증명한 것은 아닙니다.
+## Usage
 
-E5 권장 `query:` / `passage:` 접두사, 정규화 임베딩, NumPy cosine 검색을 사용합니다. 토큰 기준 300개 청크·60개 겹침. 자료 규모가 작아 별도 벡터 DB가 필요하지 않습니다. PDF 실제 페이지 수와 웹 3,000자당 1페이지의 환산량 합계를 200페이지로 제한합니다. PDF 페이지와 웹 환산페이지는 trace에서 구분합니다. 원문 URL·버전·수집 시간·SHA256을 기록하며, 이미 받은 자료는 재사용합니다. 선정 논문은 로컬 PDF의 해시를 확인하고, 나머지는 URL에서 가져옵니다. 웹 문서 변경을 반영하려면 해당 raw 캐시를 삭제하고 다시 실행합니다.
+Python 3.12를 권장합니다. 최초 실행에는 공식 문서와 임베딩 모델 다운로드를 위한 인터넷 연결이 필요합니다.
 
-## 평가 규칙과 보완한 가정
+```bash
+python -m venv .venv
+pip install -r requirements.lock
+python main.py --mode replay
+```
 
-| 기준 | 계산 |
-| --- | --- |
-| M1 | 수요 동인·채택 확대·공급/생태계 투자 각 0~2. 0 미확인, 1 단일/간접, 2 복수/시간상 확대. 합 0~1 낮음, 2~3 보통, 4~5 높음, 6 매우 높음 |
-| M2 | 채택 주체·출처가 있는 사례의 최고 L0~L4. 선정 기술과 기술 계열을 각각 계산 |
-| M3 | 프레임워크·벤더 제품·표준화·제3자 연구/도구의 Y 수. 3~4 L3, 1~2 L2, 0+원저자 구현 L1, 모두 없음 L0 |
-| D1 | KV 감소율을 `1/(1-r)`로 환산하거나 같은 조건의 문맥 증가 배수. 4 이상 L3, 2 이상 L2, 1 초과 L1, 이외·근거 없음 L0 |
-| D2 | 선정 논문의 자체 기준 대비 최대 생성 처리량 개선: 4배 이상 L3, 2배 이상 L2, 1배 초과 L1, 개선 없음·감소 L0. 근거 없으면 판정 유보 |
+실시간 평가를 실행하려면 `.env.example`을 `.env`로 복사하고 `OPENAI_API_KEY`를 설정한 뒤 실행합니다.
 
-M1 세부 항목과 새 D2의 배수 구간은 **운영 가정**입니다. L0(개선 없음)와 자료 부족을 구분합니다. 93.3% 감소의 역수는 세션 길이 실측이 아니며, 서로 다른 구성의 128K와 1M을 나누어 D1을 매기지 않습니다. MLA 5.76배는 전체 서빙 구성의 실측, PNM 최대 21.9배는 시뮬레이션으로, 기준·부하가 달라 직접 비교하지 않습니다. 어느 것도 코딩 에이전트의 지연·비용 검증을 뜻하지 않습니다.
+```bash
+python main.py --mode live
+```
 
-## 보고서와 검증
-
-첫 챕터 `SUMMARY`(반 페이지 이내 핵심 요약), 마지막 `REFERENCE`. 시장·도메인만 평가하며 특허·논문·웹 자료의 실사용 출처만 기록합니다. 미확인 발행일·학술지 정보를 만들어 넣지 않습니다. 선정 논문과 기술 계열의 근거는 분리합니다.
-
-`python -m unittest -v`의 13개 검사는 점수 경계, 첨부 논문 해시, 웹 출처 검증, 출처 위조·범위 혼합, M3 원문 청크 누락, OpenAI 응답 형식·실패 처리, 재검색 1회 제한, 병렬 평가 합류, 근거 없는 주장 차단, 보고서 장 구성·SUMMARY 형식을 점검합니다. live API 실행은 유효한 키와 모델 접근 권한이 있어야 검증할 수 있습니다. LLM의 의미 해석과 사실의 정확성은 JSON 스키마만으로 보장되지 않으므로 최종 제출 전 근거를 검토해야 합니다. Word 파일 재생성에는 `python-docx`가 필요합니다.
-
-공식 구현 문서: [LangGraph](https://docs.langchain.com/oss/python/langgraph/graph-api), [OpenAI Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs), [E5 모델 카드](https://huggingface.co/intfloat/multilingual-e5-small).
+결과는 `output/replay/` 또는 `output/live/`에 저장됩니다. `live` 모드에는 모델 접근 권한과 API 비용이 필요할 수 있습니다. 검증은 `python -m unittest -v`로 실행할 수 있습니다. 새 환경에서 가상환경 활성화 방법은 운영체제에 맞게 선택하세요.
 
 ## Contributors
 
-팀원 정보 미입력. 제출 전에 실제 이름과 구현·검색·평가·검증 기여를 기록하세요. PM/PL 직함만으로 작성하지 않습니다.
+팀원 정보는 아직 입력되지 않았습니다. 제출 전 실제 참여자의 이름과 담당 작업을 기록하세요.
+
+## Notes
+
+- MLA의 5.76배 처리량은 MLA 단독 효과가 아닌 전체 서빙 구성의 결과입니다. CXL-PNM의 최대 21.9배는 사이클 수준 시뮬레이션 결과입니다.
+- 본 구현은 이해관계자 평가, 독립적인 Judge LLM, Hit Rate@K·MRR 측정을 아직 제공하지 않습니다.
+- 작업을 이어받을 때는 [HANDOFF.md](HANDOFF.md)의 근거 범위와 실행상 주의사항을 확인하세요.
+
